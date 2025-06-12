@@ -33,16 +33,6 @@ const NUMBER_COLORS = {
   9: 'green',
 };
 
-function getRandomResult() {
-  const number = Math.floor(Math.random() * 10);
-  let color = '';
-  if ([1, 3, 7, 9].includes(number)) color = 'green';
-  else if ([2, 4, 6, 8].includes(number)) color = 'red';
-  else color = 'violet';
-  const bigSmall = number >= 5 ? 'Big' : 'Small';
-  return { number, color, bigSmall };
-}
-
 // Helper to get color and big/small from number
 function getColorAndBigSmall(number) {
   let color = '';
@@ -101,33 +91,11 @@ function GameBoard() {
             ...getColorAndBigSmall(r.number)
           }));
         setResultHistory(mapped);
-
-        // 1. Find the pending period (number === -1)
-        const pending = data.find(r => r.number === -1);
-        if (pending) {
-          setPendingPeriod(pending.period);
-          setPeriod(pending.period);
-
-          // 2. Parse period as UTC
-          const periodUTCDate = parsePeriodToUTCDate(pending.period);
-
-          // 3. Get current UTC time
-          const nowUTC = new Date();
-
-          // 4. Calculate timeLeft in seconds
-          let diff = Math.floor((periodUTCDate.getTime() - nowUTC.getTime()) / 1000);
-          if (diff < 0) diff = 0;
-
-          // 5. Set timer to this value
-          setTimeLeft(diff);
-        }
       } catch (e) {
         // handle error
       }
     };
     fetchHistory();
-    interval = setInterval(fetchHistory, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   // Timer logic synced to backend period (using UTC)
@@ -319,6 +287,7 @@ function GameBoard() {
         setRoundResult(result);
         setShowResult(true);
 
+        // Only update resultHistory from websocket after initial fetch
         setResultHistory(prev => {
           if (prev.find(r => r.period === result.period)) return prev;
           return [{ ...result }, ...prev.slice(0, 19)];
