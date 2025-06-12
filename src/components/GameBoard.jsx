@@ -85,6 +85,7 @@ function GameBoard() {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [activeTab, setActiveTab] = useState('history');
+  const [nextPeriodInfo, setNextPeriodInfo] = useState(null);
 
   // Fetch result history and set period/timer
   useEffect(() => {
@@ -184,7 +185,7 @@ function GameBoard() {
         setShowResult(false);
         setTimerKey(k => k + 1);
         setShowBetModal(false);
-        setTimeLeft(gameType.duration);
+        
       }, 3000);
     } catch (e) {
       // handle error
@@ -290,24 +291,23 @@ function GameBoard() {
       // If message contains a space and a date, it's the period and start time
       if (/^\d{14} \d{4}-\d{2}-\d{2}/.test(msg)) {
         const [periodStr, ...rest] = msg.split(' ');
-        setPendingPeriod(periodStr);
-        setPeriod(periodStr);
-
-        // Parse the actual start time from the message (with timezone)
         const startTimeStr = rest.join(' ');
-        // Safari does not support microseconds, so remove them
         const safeStartTimeStr = startTimeStr.replace(/\.\d+/, '');
         const startTime = new Date(safeStartTimeStr);
-
-        // Calculate seconds since round started
         const now = new Date();
         let elapsed = Math.floor((now - startTime) / 1000);
-
-        // Timer should be 30 - elapsed, clamped between 0 and 30
         let diff = 30 - elapsed;
         if (diff < 0) diff = 0;
         if (diff > 30) diff = 30;
-        setTimeLeft(diff);
+
+        // If result modal is showing, queue the timer update
+        if (showResult) {
+          setNextPeriodInfo({ periodStr, diff });
+        } else {
+          setPendingPeriod(periodStr);
+          setPeriod(periodStr);
+          setTimeLeft(diff);
+        }
       }
       // If message contains a period and a number, it's the result
       else if (/^\d{14} \d+$/.test(msg)) {
@@ -319,13 +319,11 @@ function GameBoard() {
         setRoundResult(result);
         setShowResult(true);
 
-        // Add to resultHistory if not present
         setResultHistory(prev => {
           if (prev.find(r => r.period === result.period)) return prev;
           return [{ ...result }, ...prev.slice(0, 19)];
         });
 
-        // Add to betHistory for showing history (if any bets for this period)
         setBetHistory(prev =>
           prev.map(bet =>
             bet.period === result.period ? { ...bet, result } : bet
@@ -336,7 +334,7 @@ function GameBoard() {
           setShowResult(false);
           setTimerKey(k => k + 1);
           setShowBetModal(false);
-          setTimeLeft(gameType.duration);
+          // DO NOT setTimeLeft here!
         }, 3000);
       }
     };
@@ -348,6 +346,16 @@ function GameBoard() {
     };
     return () => ws.close();
   }, [gameType.duration]);
+
+  // Handle next period info
+  useEffect(() => {
+    if (!showResult && nextPeriodInfo) {
+      setPendingPeriod(nextPeriodInfo.periodStr);
+      setPeriod(nextPeriodInfo.periodStr);
+      setTimeLeft(nextPeriodInfo.diff);
+      setNextPeriodInfo(null);
+    }
+  }, [showResult, nextPeriodInfo]);
 
   return (
     <div className="relative flex flex-col items-center min-w-[340px]">
