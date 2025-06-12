@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Timer from './Timer';
 
 const GAME_TYPES = [
@@ -66,10 +66,8 @@ function GameBoard() {
   const [balance] = useState(1000);
   const [betHistory, setBetHistory] = useState([]);
   const [period, setPeriod] = useState('');
-  const [timerKey, setTimerKey] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const timerIntervalRef = useRef(null);
-  const [pendingPeriod, setPendingPeriod] = useState(null);
   const [resultHistory, setResultHistory] = useState([]);
   const [roundResult, setRoundResult] = useState(null);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
@@ -77,9 +75,8 @@ function GameBoard() {
   const [activeTab, setActiveTab] = useState('history');
   const [nextPeriodInfo, setNextPeriodInfo] = useState(null);
 
-  // Fetch result history and set period/timer
+  // 1. Fetch result history only once on mount
   useEffect(() => {
-    let interval;
     const fetchHistory = async () => {
       try {
         const res = await fetch('https://color-prediction-742i.onrender.com/results');
@@ -98,7 +95,70 @@ function GameBoard() {
     fetchHistory();
   }, []);
 
-  // Timer logic synced to backend period (using UTC)
+  // 2. WebSocket: Only connect once on mount
+  useEffect(() => {
+    const ws = new WebSocket('wss://color-prediction-742i.onrender.com/ws');
+    ws.onopen = () => console.log('WebSocket connected');
+    ws.onmessage = (event) => {
+      const msg = event.data.trim();
+
+      // Period/start-time message
+      if (/^\d{14} \d{4}-\d{2}-\d{2}/.test(msg)) {
+        const [periodStr, ...rest] = msg.split(' ');
+        const startTimeStr = rest.join(' ').replace(/\.\d+/, '');
+        const startTime = new Date(startTimeStr);
+        const now = new Date();
+        let elapsed = Math.floor((now - startTime) / 1000);
+        let diff = 30 - elapsed;
+        if (diff < 0) diff = 0;
+        if (diff > 30) diff = 30;
+
+        if (showResult) {
+          setNextPeriodInfo({ periodStr, diff });
+        } else {
+          setPeriod(periodStr);
+          setTimeLeft(diff);
+        }
+      }
+      // Result message
+      else if (/^\d{14} \d+$/.test(msg)) {
+        const [periodStr, numberStr] = msg.split(' ');
+        const number = parseInt(numberStr, 10);
+        const { color, bigSmall } = getColorAndBigSmall(number);
+        const result = { period: periodStr, number, color, bigSmall };
+
+        setRoundResult(result);
+        setShowResult(true);
+
+        // Use functional updates to avoid stale closures
+        setResultHistory(prev => {
+          if (prev.find(r => r.period === result.period)) return prev;
+          return [{ ...result }, ...prev.slice(0, 19)];
+        });
+
+        setBetHistory(prev =>
+          prev.map(bet =>
+            bet.period === result.period ? { ...bet, result } : bet
+          )
+        );
+
+        setTimeout(() => {
+          setShowResult(false);
+          setShowBetModal(false);
+        }, 3000);
+      }
+    };
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+    ws.onclose = () => {
+      console.log('WebSocket closed');
+    };
+    return () => ws.close();
+    // eslint-disable-next-line
+  }, []); // Only once on mount
+
+  // 3. Timer logic: only restart timer when period changes
   useEffect(() => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     if (timeLeft <= 0) return;
@@ -114,70 +174,30 @@ function GameBoard() {
     }, 1000);
 
     return () => clearInterval(timerIntervalRef.current);
-  }, [period, timeLeft]);
+  }, [period]);
 
-  // When timer hits 0, fetch result for current period
+  // 4. Handle next period info after result modal closes
   useEffect(() => {
-    if (timeLeft === 0 && pendingPeriod) {
-      handleTimeUp();
+    if (!showResult && nextPeriodInfo) {
+      setPeriod(nextPeriodInfo.periodStr);
+      setTimeLeft(nextPeriodInfo.diff);
+      setNextPeriodInfo(null);
     }
-    // eslint-disable-next-line
-  }, [timeLeft, pendingPeriod]);
+  }, [showResult, nextPeriodInfo]);
 
-  // Fetch result for pending period when timer ends
-  const handleTimeUp = useCallback(async () => {
-    if (!pendingPeriod) return;
-    try {
-      const res = await fetch(`https://color-prediction-742i.onrender.com/results/${pendingPeriod}`);
-      const data = await res.json();
-      const { color, bigSmall } = getColorAndBigSmall(data.number);
-      const result = { ...data, color, bigSmall };
-
-      setRoundResult(result);
-      setShowResult(true);
-
-      // Add to resultHistory if not present
-      setResultHistory(prev => {
-        if (prev.find(r => r.period === result.period)) return prev;
-        return [{ ...result }, ...prev.slice(0, 19)];
-      });
-
-      // Add to betHistory for showing history (if any bets for this period)
-      setBetHistory(prev =>
-        prev.map(bet =>
-          bet.period === result.period ? { ...bet, result } : bet
-        )
-      );
-
-      setTimeout(() => {
-        setShowResult(false);
-        setTimerKey(k => k + 1);
-        setShowBetModal(false);
-        
-      }, 3000);
-    } catch (e) {
-      // handle error
-    }
-  }, [pendingPeriod, gameType.duration]);
-
-  // Update period to pendingPeriod when it changes
-  useEffect(() => {
-    if (pendingPeriod) setPeriod(pendingPeriod);
-  }, [pendingPeriod]);
-
-  const handleGameTypeChange = (type) => {
+  // 5. Use useCallback for handlers passed to children (optional, for large lists)
+  const handleGameTypeChange = useCallback((type) => {
     setGameType(type);
     setShowBetModal(false);
     setSelectedColor(null);
     setSelectedNumber(null);
-    setSelectedBigSmall(null); // Add this line
+    setSelectedBigSmall(null);
     setQuantity(1);
     setAgree(false);
     setShowResult(false);
     setRoundResult(null);
-    setTimerKey((k) => k + 1);
-    setTimeLeft(type.duration);
-  };
+    //setTimeLeft(type.duration);
+  }, []);
 
   const handleColorClick = (color) => {
     if (timeLeft > 5 && !showResult) {
@@ -243,88 +263,6 @@ function GameBoard() {
     const s = String(seconds % 60).padStart(2, '0');
     return `${m}:${s}`;
   };
-
-  useEffect(() => {
-    const ws = new WebSocket('wss://color-prediction-742i.onrender.com/ws');
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
-    ws.onmessage = (event) => {
-      // Example messages:
-      // "20250611184103 2025-06-11 18:41:03.621055+05:30"
-      // "20250611184103 6"
-      const msg = event.data.trim();
-      console.log('WebSocket raw message:', msg);
-
-      // If message contains a space and a date, it's the period and start time
-      if (/^\d{14} \d{4}-\d{2}-\d{2}/.test(msg)) {
-        const [periodStr, ...rest] = msg.split(' ');
-        const startTimeStr = rest.join(' ');
-        const safeStartTimeStr = startTimeStr.replace(/\.\d+/, '');
-        const startTime = new Date(safeStartTimeStr);
-        const now = new Date();
-        let elapsed = Math.floor((now - startTime) / 1000);
-        let diff = 30 - elapsed;
-        if (diff < 0) diff = 0;
-        if (diff > 30) diff = 30;
-
-        // If result modal is showing, queue the timer update
-        if (showResult) {
-          setNextPeriodInfo({ periodStr, diff });
-        } else {
-          setPendingPeriod(periodStr);
-          setPeriod(periodStr);
-          setTimeLeft(diff);
-        }
-      }
-      // If message contains a period and a number, it's the result
-      else if (/^\d{14} \d+$/.test(msg)) {
-        const [periodStr, numberStr] = msg.split(' ');
-        const number = parseInt(numberStr, 10);
-        const { color, bigSmall } = getColorAndBigSmall(number);
-        const result = { period: periodStr, number, color, bigSmall };
-
-        setRoundResult(result);
-        setShowResult(true);
-
-        // Only update resultHistory from websocket after initial fetch
-        setResultHistory(prev => {
-          if (prev.find(r => r.period === result.period)) return prev;
-          return [{ ...result }, ...prev.slice(0, 19)];
-        });
-
-        setBetHistory(prev =>
-          prev.map(bet =>
-            bet.period === result.period ? { ...bet, result } : bet
-          )
-        );
-
-        setTimeout(() => {
-          setShowResult(false);
-          setTimerKey(k => k + 1);
-          setShowBetModal(false);
-          // DO NOT setTimeLeft here!
-        }, 3000);
-      }
-    };
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
-    return () => ws.close();
-  }, [gameType.duration]);
-
-  // Handle next period info
-  useEffect(() => {
-    if (!showResult && nextPeriodInfo) {
-      setPendingPeriod(nextPeriodInfo.periodStr);
-      setPeriod(nextPeriodInfo.periodStr);
-      setTimeLeft(nextPeriodInfo.diff);
-      setNextPeriodInfo(null);
-    }
-  }, [showResult, nextPeriodInfo]);
 
   return (
     <div className="relative flex flex-col items-center min-w-[340px]">
@@ -471,16 +409,6 @@ function GameBoard() {
             <div className="text-sm font-mono">{period}</div>
           </div>
 
-          {/* Hidden Timer Component */}
-          <div className="hidden">
-            <Timer
-              key={timerKey}
-              duration={gameType.duration}
-              onTimeUp={handleTimeUp}
-              renderTime={formatTime}
-              setTimeLeft={setTimeLeft}
-            />
-          </div>
         </div>
 
         {/* How to Play Modal */}
