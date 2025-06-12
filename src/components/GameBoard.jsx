@@ -74,11 +74,16 @@ function GameBoard() {
   const [showResult, setShowResult] = useState(false);
   const [activeTab, setActiveTab] = useState('history');
   const [nextPeriodInfo, setNextPeriodInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [wsReady, setWsReady] = useState(false);
+  const [wsTimeout, setWsTimeout] = useState(false);
+  const [balancePerBet, setBalancePerBet] = useState(1);
 
   // 1. Fetch result history only once on mount
   useEffect(() => {
     const fetchHistory = async () => {
       try {
+        setLoading(true);
         const res = await fetch('https://color-prediction-742i.onrender.com/results');
         const data = await res.json();
         const mapped = data
@@ -90,6 +95,8 @@ function GameBoard() {
         setResultHistory(mapped);
       } catch (e) {
         // handle error
+      } finally {
+        setLoading(false);
       }
     };
     fetchHistory();
@@ -98,7 +105,10 @@ function GameBoard() {
   // 2. WebSocket: Only connect once on mount
   useEffect(() => {
     const ws = new WebSocket('wss://color-prediction-742i.onrender.com/ws');
-    ws.onopen = () => console.log('WebSocket connected');
+    ws.onopen = () => {
+      setWsReady(true);
+      console.log('WebSocket connected');
+    };
     ws.onmessage = (event) => {
       const msg = event.data.trim();
 
@@ -149,13 +159,14 @@ function GameBoard() {
       }
     };
     ws.onerror = (err) => {
+      setWsReady(false);
       console.error('WebSocket error:', err);
     };
     ws.onclose = () => {
+      setWsReady(false);
       console.log('WebSocket closed');
     };
     return () => ws.close();
-    // eslint-disable-next-line
   }, []); // Only once on mount
 
   // 3. Timer logic: only restart timer when period changes
@@ -236,8 +247,8 @@ function GameBoard() {
     setQuantity((prev) => Math.max(1, prev + val));
   };
 
-  const handleMultiplier = (mult) => {
-    setQuantity(mult);
+  const handleSetQuantity = (val) => {
+    setQuantity(val);
   };
 
   const handlePlaceBet = () => {
@@ -250,8 +261,10 @@ function GameBoard() {
         number: selectedNumber,
         bigSmall: selectedBigSmall,
         quantity,
+        balancePerBet, // Save this if you want to show it in bet history
+        totalAmount: balancePerBet * quantity, // Optional, for clarity
         gameType: gameType.label,
-        timestamp: new Date().toISOString(), // Add timestamp
+        timestamp: new Date().toISOString(),
       },
     ]);
     setShowBetModal(false);
@@ -263,6 +276,30 @@ function GameBoard() {
     const s = String(seconds % 60).padStart(2, '0');
     return `${m}:${s}`;
   };
+
+  useEffect(() => {
+    if (!wsReady) {
+      const timeout = setTimeout(() => setWsTimeout(true), 8000); // 8 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setWsTimeout(false);
+    }
+  }, [wsReady]);
+
+  if (loading || !wsReady) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-200"></div>
+          <div className="text-blue-700 font-bold text-xl">
+            {wsTimeout
+              ? "Unable to connect to game server. Please check your connection or try again later."
+              : "Loading..."}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col items-center min-w-[340px]">
@@ -575,8 +612,8 @@ function GameBoard() {
                     {[1, 10, 100, 1000].map((amt) => (
                       <button
                         key={amt}
-                        className="bg-blue-700 text-white px-2 py-1 rounded font-bold"
-                        onClick={() => setQuantity(amt)}
+                        className={`bg-blue-700 text-white px-2 py-1 rounded font-bold ${balancePerBet === amt ? 'ring-2 ring-green-400' : ''}`}
+                        onClick={() => setBalancePerBet(amt)}
                       >
                         {amt}
                       </button>
@@ -594,13 +631,13 @@ function GameBoard() {
                 </div>
                 {/* Multipliers */}
                 <div className="flex gap-2 mb-2">
-                  {[1, 5, 10, 20, 50, 100].map((mult) => (
+                  {[1, 5, 10, 20, 50, 100].map((val) => (
                     <button
-                      key={mult}
-                      className={`px-2 py-1 rounded font-bold ${quantity === mult ? 'bg-green-500 text-white' : 'bg-blue-700 text-white'}`}
-                      onClick={() => handleMultiplier(mult)}
+                      key={val}
+                      className={`px-2 py-1 rounded font-bold ${quantity === val ? 'bg-green-500 text-white' : 'bg-blue-700 text-white'}`}
+                      onClick={() => handleSetQuantity(val)}
                     >
-                      X{mult}
+                      X{val}
                     </button>
                   ))}
                 </div>
@@ -629,7 +666,7 @@ function GameBoard() {
                     disabled={!agree || timeLeft <= 5 || showResult}
                     onClick={handlePlaceBet}
                   >
-                    Total Amount&nbsp;{quantity}
+                    Total Amount&nbsp;{balancePerBet * quantity}
                   </button>
                 </div>
               </div>
@@ -680,7 +717,7 @@ function GameBoard() {
             </div>
           </div>
         ) : (
-          // My Bets Table - Updated to match screenshot
+          // My Bets Table
           <div className="w-full">
             <div className="space-y-2">
               {betHistory.slice(-10).reverse().map((bet, idx) => {
@@ -715,18 +752,19 @@ function GameBoard() {
                     <div className="flex items-center justify-between">
                       {/* Left side - Color indicator */}
                       <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${bet.color === 'green' ? 'bg-green-500' :
-                            bet.color === 'violet' ? 'bg-purple-500' :
-                              bet.color === 'red' ? 'bg-red-500' :
-                                bet.number !== null ? (
-                                  NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
-                                    NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                                ) :
-                                  bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
-                          }`}>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${
+                          bet.color === 'green' ? 'bg-green-500' :
+                          bet.color === 'violet' ? 'bg-purple-500' :
+                          bet.color === 'red' ? 'bg-red-500' :
+                          bet.number !== null ? (
+                            NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
+                            NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
+                          ) :
+                          bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
+                        }`}>
                           {bet.number !== null ? bet.number :
                             bet.color ? (bet.color === 'violet' ? 'V' : bet.color.charAt(0).toUpperCase()) :
-                              bet.bigSmall ? (bet.bigSmall === 'Big' ? 'B' : 'S') : '?'}
+                            bet.bigSmall ? (bet.bigSmall === 'Big' ? 'B' : 'S') : '?'}
                         </div>
 
                         <div className="text-white">
@@ -740,8 +778,7 @@ function GameBoard() {
                         {/* Status */}
                         <div className="text-center">
                           {res ? (
-                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${win ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                              }`}>
+                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${win ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
                               {win ? 'Win' : 'Fail'}
                             </span>
                           ) : (
@@ -753,9 +790,12 @@ function GameBoard() {
 
                         {/* Amount */}
                         <div className="text-right">
-                          <div className={`font-bold text-lg ${res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
-                            }`}>
-                            {res ? (win ? `+${bet.quantity}` : `-${bet.quantity}`) : `-${bet.quantity}`}
+                          <div className={`font-bold text-lg ${
+                            res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
+                          }`}>
+                            {res
+                              ? (win ? `+${bet.balancePerBet * bet.quantity}` : `-${bet.balancePerBet * bet.quantity}`)
+                              : `-${bet.balancePerBet * bet.quantity}`}
                           </div>
                         </div>
                       </div>
