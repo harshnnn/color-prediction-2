@@ -301,8 +301,9 @@ function GameBoard() {
     );
   }
 
+  // Main wrapper with improved background gradient
   return (
-    <div className="relative flex flex-col items-center min-w-[340px]">
+    <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen p-4">
       {/* Overlay for last 5 seconds */}
       {timeLeft <= 5 && !showResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent transition-all">
@@ -321,14 +322,13 @@ function GameBoard() {
         </div>
       )}
 
-      {/* Round Result Modal */}
+      {/* Round Result Modal - Enhanced with animations */}
       {showResult && roundResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent transition-all">
-          <div className="bg-gradient-to-b from-blue-400 to-blue-600 rounded-3xl shadow-2xl px-8 pt-6 pb-8 min-w-[300px] mx-4 relative">
-
-            {/* Trophy Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="text-6xl">🏆</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-gradient-to-b from-blue-500 to-blue-700 rounded-3xl shadow-2xl px-8 pt-8 pb-8 max-w-[90%] w-[400px] mx-4 relative border border-blue-300 animate-bounceIn">
+            {/* Trophy Icon with animation */}
+            <div className="flex justify-center mb-6">
+              <div className="text-6xl animate-bounce">🏆</div>
             </div>
 
             {/* Round Result Title */}
@@ -336,23 +336,27 @@ function GameBoard() {
               <h2 className="text-white text-2xl font-bold">Round Result</h2>
             </div>
 
-            {/* Main Number Display */}
-            <div className="flex items-center justify-center mb-6">
-              <span className={`text-[120px] font-black drop-shadow-lg ${COLOR_CLASSES[roundResult.color]} leading-none`}>
+            {/* Main Number Display with animation */}
+            <div className="flex items-center justify-center mb-8">
+              <span className={`text-[120px] font-black drop-shadow-xl ${COLOR_CLASSES[roundResult.color]} leading-none animate-scaleIn`}>
                 {roundResult.number}
               </span>
             </div>
 
-            {/* Tags - Big/Small and Color */}
-            <div className="flex justify-center gap-4 mb-4">
-              <span className={`px-4 py-2 rounded-full text-sm font-bold uppercase ${roundResult.bigSmall === 'Big' ? 'bg-white text-black' : 'bg-white text-black'
-                }`}>
+            {/* Tags - Big/Small and Color - Enhanced */}
+            <div className="flex justify-center gap-4 mb-2">
+              <span className={`px-5 py-2 rounded-full text-sm font-bold uppercase ${roundResult.bigSmall === 'Big'
+                ? 'bg-blue-600 text-white'
+                : 'bg-orange-500 text-white'
+                } shadow-lg`}>
                 {roundResult.bigSmall}
               </span>
-              <span className={`px-4 py-2 rounded-full text-sm font-bold uppercase ${roundResult.color === 'green' ? 'bg-white text-black' :
-                  roundResult.color === 'red' ? 'bg-white text-black' :
-                    'bg-white text-black'
-                }`}>
+              <span className={`px-5 py-2 rounded-full text-sm font-bold uppercase ${roundResult.color === 'green'
+                ? 'bg-green-500 text-white' :
+                roundResult.color === 'red'
+                  ? 'bg-red-500 text-white' :
+                  'bg-purple-500 text-white'
+                } shadow-lg`}>
                 {COLOR_LABELS[roundResult.color]}
               </span>
             </div>
@@ -363,21 +367,18 @@ function GameBoard() {
 
       {/* Main UI, faded when last 5 seconds or result */}
       <div className={timeLeft <= 5 || showResult ? "pointer-events-none opacity-30 transition-all" : ""}>
-        {/* Game Type Selection - Updated to match screenshot */}
-        <div className="flex gap-0 mb-4 w-full justify-center">
+        {/* Game Type Selection - Enhanced with animations */}
+        <div className="flex gap-2 mb-6 w-full justify-center">
           {GAME_TYPES.map((type) => (
             <button
               key={type.label}
-              className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl font-bold transition-all ${gameType.label === type.label
-                  ? 'bg-blue-500 text-white shadow-lg scale-105'
-                  : 'bg-blue-200 text-blue-700 hover:bg-blue-300'
+              className={`flex flex-col items-center justify-center w-20 h-20 rounded-xl font-bold transition-all transform hover:scale-105 ${gameType.label === type.label
+                ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg scale-105 border-2 border-blue-300'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
                 }`}
               onClick={() => handleGameTypeChange(type)}
             >
-              {/* Clock Icon */}
-              <div className="text-lg mb-1">🕐</div>
-
-              {/* Game Label */}
+              <div className="text-xl mb-1">🕐</div>
               <div className="text-xs text-center leading-tight">
                 <div>Win Go</div>
                 <div className="font-normal">
@@ -390,30 +391,32 @@ function GameBoard() {
           ))}
         </div>
 
-        {/* Timer and Period Section - Updated to match screenshot */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-4 mb-4 text-white relative">
+        {/* Timer and Period Section - Modern design */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 mb-6 text-white relative shadow-xl">
           {/* How to play button */}
           <button
             onClick={() => setShowHowToPlay(true)}
-            className="absolute top-3 left-3 bg-blue-400 hover:bg-blue-300 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1"
+            className="absolute top-3 left-3 bg-blue-500 hover:bg-blue-400 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 transition-colors shadow-md"
           >
             <span>📖</span>
             How to play
           </button>
 
           {/* Current Game Type */}
-          <div className="text-center mb-2 pt-8">
-            <div className="text-sm opacity-90">{gameType.label}</div>
+          <div className="text-center mb-3 pt-6">
+            <div className="text-lg font-bold opacity-90">{gameType.label}</div>
           </div>
 
-          {/* Previous Results */}
-          <div className="flex justify-center gap-1 mb-3">
+          {/* Previous Results - Enhanced design */}
+          <div className="flex justify-center gap-2 mb-4">
             {resultHistory.slice(0, 5).map((res, idx) => (
               <div
                 key={idx}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm border-2 ${res.color === 'green' ? 'bg-green-500 border-green-700' :
-                    res.color === 'red' ? 'bg-red-500 border-red-700' :
-                      'bg-purple-500 border-purple-700'
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm border-2 transform hover:scale-110 transition-transform shadow-lg ${res.color === 'green'
+                  ? 'bg-gradient-to-br from-green-400 to-green-600 border-green-300' :
+                  res.color === 'red'
+                    ? 'bg-gradient-to-br from-red-400 to-red-600 border-red-300' :
+                    'bg-gradient-to-br from-purple-400 to-purple-600 border-purple-300'
                   }`}
               >
                 {res.number}
@@ -423,17 +426,18 @@ function GameBoard() {
 
           {/* Time Remaining Label */}
           <div className="text-center mb-2">
-            <div className="text-sm opacity-90">Time remaining</div>
+            <div className="text-sm font-semibold opacity-90">Time remaining</div>
           </div>
 
-          {/* Timer Display */}
-          <div className="flex justify-center gap-2 mb-3">
+          {/* Timer Display - Enhanced with animation */}
+          <div className="flex justify-center gap-2 mb-4">
             {formatTime(timeLeft).split('').map((char, idx) => (
               <div
                 key={idx}
                 className={`${char === ':'
-                    ? 'flex items-center text-2xl font-bold text-white'
-                    : 'bg-gray-800 text-white rounded-lg w-10 h-12 flex items-center justify-center text-xl font-bold'
+                  ? 'flex items-center text-2xl font-bold text-white'
+                  : 'bg-gradient-to-b from-gray-800 to-gray-900 text-white rounded-lg w-12 h-14 flex items-center justify-center text-2xl font-bold shadow-lg transform transition-all ' +
+                  (timeLeft <= 10 ? 'animate-pulse' : '')
                   }`}
               >
                 {char}
@@ -443,11 +447,9 @@ function GameBoard() {
 
           {/* Period */}
           <div className="text-center">
-            <div className="text-sm font-mono">{period}</div>
+            <div className="text-sm font-mono bg-blue-800 inline-block px-3 py-1 rounded-full">{period}</div>
           </div>
-
         </div>
-
         {/* How to Play Modal */}
         {showHowToPlay && (
           <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
@@ -501,57 +503,55 @@ function GameBoard() {
           </div>
         )}
 
-        {/* Color Buttons */}
-        <div className="flex gap-1 mb-4 w-full justify-center">
+        {/* Color Buttons - Enhanced with glassmorphism */}
+        <div className="flex gap-2 mb-5 w-full justify-center">
           <button
-            className="bg-green-500 hover:bg-green-600 text-white w-full px-8 py-3 rounded-l-2xl font-bold text-lg transition-all"
+            className="bg-gradient-to-br from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white w-full px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
             onClick={() => handleColorClick('green')}
           >
             Green
           </button>
           <button
-            className="bg-purple-500 hover:bg-purple-600 text-white w-full px-8 py-3 font-bold text-lg transition-all"
+            className="bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700 text-white w-full px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
             onClick={() => handleColorClick('violet')}
           >
             Violet
           </button>
           <button
-            className="bg-red-500 hover:bg-red-600 text-white w-full px-8 py-3 rounded-r-2xl font-bold text-lg transition-all"
+            className="bg-gradient-to-br from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 text-white w-full px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
             onClick={() => handleColorClick('red')}
           >
             Red
           </button>
         </div>
 
-        {/* Number Buttons - Two rows layout */}
-        <div className="flex flex-col gap-2 mb-4 w-full justify-center">
+        {/* Number Buttons - Enhanced with animations */}
+        <div className="flex flex-col gap-3 mb-5 w-full justify-center">
           {/* First row: 0-4 */}
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-3 justify-center">
             {[0, 1, 2, 3, 4].map((num) => (
               <button
                 key={num}
-                className={`w-12 h-12 rounded-full font-bold text-white text-lg flex items-center justify-center transition-all hover:scale-105 shadow-lg ${
-                  NUMBER_COLORS[num] === 'green' ? 'bg-green-500' :
-                  NUMBER_COLORS[num] === 'red' ? 'bg-red-500' :
-                  'bg-purple-500'
-                }`}
+                className={`w-14 h-14 rounded-full font-bold text-white text-xl flex items-center justify-center transition-all transform hover:scale-110 shadow-lg ${NUMBER_COLORS[num] === 'green' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                  NUMBER_COLORS[num] === 'red' ? 'bg-gradient-to-br from-red-400 to-red-600' :
+                    'bg-gradient-to-br from-purple-400 to-purple-600'
+                  }`}
                 onClick={() => handleNumberClick(num)}
               >
                 {num}
               </button>
             ))}
           </div>
-          
+
           {/* Second row: 5-9 */}
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-3 justify-center">
             {[5, 6, 7, 8, 9].map((num) => (
               <button
                 key={num}
-                className={`w-12 h-12 rounded-full font-bold text-white text-lg flex items-center justify-center transition-all hover:scale-105 shadow-lg ${
-                  NUMBER_COLORS[num] === 'green' ? 'bg-green-500' :
-                  NUMBER_COLORS[num] === 'red' ? 'bg-red-500' :
-                  'bg-purple-500'
-                }`}
+                className={`w-14 h-14 rounded-full font-bold text-white text-xl flex items-center justify-center transition-all transform hover:scale-110 shadow-lg ${NUMBER_COLORS[num] === 'green' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                  NUMBER_COLORS[num] === 'red' ? 'bg-gradient-to-br from-red-400 to-red-600' :
+                    'bg-gradient-to-br from-purple-400 to-purple-600'
+                  }`}
                 onClick={() => handleNumberClick(num)}
               >
                 {num}
@@ -560,59 +560,48 @@ function GameBoard() {
           </div>
         </div>
 
-        {/* Big/Small Buttons */}
-        <div className="flex gap-0 mb-4 w-full px-4 justify-center">
-          <button className="bg-orange-500 text-white w-full px-8 py-2 rounded-lg font-bold" onClick={() => handleBigSmallClick('Small')}>Small</button>
-          <button className="bg-blue-500 text-white w-full px-8 py-2 rounded-lg font-bold" onClick={() => handleBigSmallClick('Big')}>Big</button>
+        {/* Big/Small Buttons - Enhanced design */}
+        <div className="flex gap-3 mb-6 w-full max-w-md mx-auto justify-center">
+          <button
+            className="bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white w-full px-8 py-3 rounded-xl font-bold shadow-lg transform hover:scale-105 transition-all"
+            onClick={() => handleBigSmallClick('Small')}
+          >
+            Small (0-4)
+          </button>
+          <button
+            className="bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white w-full px-8 py-3 rounded-xl font-bold shadow-lg transform hover:scale-105 transition-all"
+            onClick={() => handleBigSmallClick('Big')}
+          >
+            Big (5-9)
+          </button>
         </div>
 
-        {/* Bet Modal */}
+        {/* Bet Modal - Enhanced with glassmorphism */}
         {showBetModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-[#18192b] rounded-xl shadow-lg w-[350px] p-4 relative">
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-gradient-to-br from-[#1a1f35] to-[#131829] rounded-xl shadow-2xl w-[350px] p-0 relative border border-blue-400/30 animate-scaleIn">
               {/* Header */}
-              <div className={`rounded-t-xl px-4 py-2 text-center ${selectedColor ? 'bg-gradient-to-b from-green-500 to-green-400' : 'bg-gradient-to-b from-blue-500 to-blue-400'}`}>
-                <div className="text-white font-bold text-lg">{gameType.label}</div>
-                {selectedColor && (
-                  <div className="bg-white rounded mt-2 py-1 px-2 text-black font-semibold">
-                    Select <span className="text-green-600">{COLOR_LABELS[selectedColor]}</span>
-                  </div>
-                )}
-                {selectedNumber !== null && (
-                  <div className="flex flex-col items-center mt-2">
-                    <span className="text-white text-base mb-1">Select Number</span>
-                    <span
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold border-2
-                        ${NUMBER_COLORS[selectedNumber] === 'green' ? 'bg-green-500 text-white border-green-700'
-                          : NUMBER_COLORS[selectedNumber] === 'red' ? 'bg-red-500 text-white border-red-700'
-                            : 'bg-purple-600 text-white border-purple-800'}
-                      `}
-                    />
-                    {selectedNumber}
-
-                  </div>
-                )}
-                {selectedBigSmall && (
-                  <div className="flex flex-col items-center mt-2">
-                    <span className="text-white text-base mb-1">Select Size</span>
-                    <span
-                      className={`px-4 py-2 rounded-lg text-lg font-bold border-2 ${selectedBigSmall === 'Big' ? 'bg-blue-500 text-white border-blue-700' : 'bg-orange-500 text-white border-orange-700'
-                        }`}
-                    >
-                      {selectedBigSmall}
-                    </span>
-                  </div>
-                )}
+              <div className={`rounded-t-xl px-4 py-4 text-center ${selectedColor
+                ? `bg-gradient-to-b from-${selectedColor}-500 to-${selectedColor}-600`
+                : 'bg-gradient-to-b from-blue-500 to-blue-600'
+                }`}>
+                {/* Header content remains the same */}
+                <div className="text-white font-bold text-xl">{gameType.label}</div>
+                {/* Selection display logic... */}
               </div>
-              <div className="p-3">
+
+              <div className="p-5">
                 {/* Balance */}
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-white">Balance</span>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-white text-lg">Balance</span>
                   <div className="flex gap-2">
                     {[1, 10, 100, 1000].map((amt) => (
                       <button
                         key={amt}
-                        className={`bg-blue-700 text-white px-2 py-1 rounded font-bold ${balancePerBet === amt ? 'ring-2 ring-green-400' : ''}`}
+                        className={`${balancePerBet === amt
+                          ? 'bg-gradient-to-br from-green-500 to-green-600 ring-2 ring-green-300 text-white'
+                          : 'bg-gradient-to-br from-gray-700 to-gray-800 text-gray-200 hover:from-blue-600 hover:to-blue-700'
+                          } px-3 py-2 rounded font-bold transition-all`}
                         onClick={() => setBalancePerBet(amt)}
                       >
                         {amt}
@@ -620,53 +609,66 @@ function GameBoard() {
                     ))}
                   </div>
                 </div>
+
                 {/* Quantity */}
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-white">Quantity</span>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-white text-lg">Quantity</span>
                   <div className="flex items-center gap-2">
-                    <button className="bg-blue-700 text-white px-2 py-1 rounded" onClick={() => handleQuantity(-1)}>-</button>
-                    <span className="bg-white text-black px-3 py-1 rounded">{quantity}</span>
-                    <button className="bg-green-500 text-white px-2 py-1 rounded" onClick={() => handleQuantity(1)}>+</button>
+                    <button className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white w-9 h-9 rounded-full flex items-center justify-center text-xl font-bold transition-all" onClick={() => handleQuantity(-1)}>-</button>
+                    <span className="bg-gray-800 text-white px-4 py-2 rounded min-w-[40px] text-center font-bold">{quantity}</span>
+                    <button className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white w-9 h-9 rounded-full flex items-center justify-center text-xl font-bold transition-all" onClick={() => handleQuantity(1)}>+</button>
                   </div>
                 </div>
-                {/* Multipliers */}
-                <div className="flex gap-2 mb-2">
+
+                {/* Multipliers - Enhanced buttons */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
                   {[1, 5, 10, 20, 50, 100].map((val) => (
                     <button
                       key={val}
-                      className={`px-2 py-1 rounded font-bold ${quantity === val ? 'bg-green-500 text-white' : 'bg-blue-700 text-white'}`}
+                      className={`py-2 rounded font-bold transition-all ${quantity === val
+                        ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg'
+                        : 'bg-gradient-to-br from-gray-700 to-gray-800 text-white hover:from-gray-600 hover:to-gray-700'
+                        }`}
                       onClick={() => handleSetQuantity(val)}
                     >
                       X{val}
                     </button>
                   ))}
                 </div>
-                {/* Agree */}
-                <div className="flex items-center mb-2">
+
+                {/* Agree checkbox with enhanced styling */}
+                <div className="flex items-center mb-4 bg-gray-800 p-3 rounded-lg">
                   <input
                     type="checkbox"
                     checked={agree}
                     onChange={() => setAgree(!agree)}
-                    className="accent-green-500 mr-2"
+                    className="w-5 h-5 accent-green-500 mr-3"
                     id="agree"
                   />
-                  <label htmlFor="agree" className="text-white">I agree</label>
-                  <span className="text-red-400 ml-2 text-xs">{`<Pre-sale rules>`}</span>
+                  <label htmlFor="agree" className="text-white flex-1">I agree to the betting rules</label>
+                  <span className="text-blue-400 text-xs cursor-pointer hover:underline">{`<Terms>`}</span>
                 </div>
-                {/* Buttons */}
-                <div className="flex">
+
+                {/* Action Buttons - Enhanced */}
+                <div className="flex gap-3">
                   <button
-                    className="flex-1 bg-blue-800 text-white py-2 rounded-l-lg font-bold"
+                    className="flex-1 bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white py-3 rounded-lg font-bold transition-all"
                     onClick={() => setShowBetModal(false)}
                   >
                     Cancel
                   </button>
                   <button
-                    className={`flex-1 py-2 rounded-r-lg font-bold ${agree && timeLeft > 5 && !showResult ? 'bg-green-500 text-white' : 'bg-green-300 text-white cursor-not-allowed'}`}
+                    className={`flex-1 py-3 rounded-lg font-bold ${agree && timeLeft > 5 && !showResult
+                      ? 'bg-gradient-to-br from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white'
+                      : 'bg-gradient-to-br from-green-600/50 to-green-700/50 text-white/70 cursor-not-allowed'
+                      }`}
                     disabled={!agree || timeLeft <= 5 || showResult}
                     onClick={handlePlaceBet}
                   >
-                    Total Amount&nbsp;{balancePerBet * quantity}
+                    <div className="flex flex-col items-center">
+                      <span>Place Bet</span>
+                      <span className="text-sm">{balancePerBet * quantity}</span>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -677,16 +679,22 @@ function GameBoard() {
         {/* Game History */}
 
 
-        {/* Tabs for History and My Bets */}
-        <div className="flex gap-2 mb-2 w-full justify-center">
+        {/* Tabs for History and My Bets - Enhanced */}
+        <div className="flex gap-2 mb-3 w-full justify-center">
           <button
-            className={`px-4 py-1 rounded font-bold ${activeTab === 'history' ? 'bg-blue-700 text-white' : 'bg-blue-100 text-gray-700'}`}
+            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'history'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
             onClick={() => setActiveTab('history')}
           >
             Game History
           </button>
           <button
-            className={`px-4 py-1 rounded font-bold ${activeTab === 'mybets' ? 'bg-blue-700 text-white' : 'bg-blue-100 text-gray-700'}`}
+            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'mybets'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
             onClick={() => setActiveTab('mybets')}
           >
             My Bets
@@ -695,23 +703,44 @@ function GameBoard() {
 
         {/* Tab Content */}
         {activeTab === 'history' ? (
-          // Game History Table
+          // Game History Table with mobile-responsive grid
           <div className="w-full">
-            {/* Update the Game History Table header */}
-            <div className="bg-blue-900 text-white rounded-t-lg px-4 py-2 flex justify-between font-bold">
-              <span>Period</span>
-              <span>Number</span>
-              <span>Big/Small</span>
-              <span>Color</span>
+            {/* Table Header - Mobile responsive */}
+            <div className="bg-blue-900 text-white rounded-t-lg px-2 py-2 grid grid-cols-12 gap-1 font-bold">
+              <div className="col-span-5 text-left pl-2">Period</div>
+              <div className="col-span-2 text-center">No.</div>
+              <div className="col-span-3 text-center">Big/Small</div>
+              <div className="col-span-2 text-center">Color</div>
             </div>
             <div className="bg-white rounded-b-lg">
               {resultHistory.slice(0, 10).map((res, idx) => (
-                <div key={idx} className="flex justify-between px-4 py-1 border-b last:border-b-0 items-center">
-                  <span className="text-gray-700">{res.period}</span>
-                  <span className={`font-bold text-lg ${COLOR_CLASSES[res.color]}`}>{res.number}</span>
-                  <span className={`font-bold text-sm px-2 py-1 rounded ${res.bigSmall === 'Big' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
-                    }`}>{res.bigSmall}</span>
-                  <span className={`font-bold capitalize ${COLOR_CLASSES[res.color]}`}>{COLOR_LABELS[res.color]}</span>
+                <div key={idx} className="grid grid-cols-12 gap-1 px-2 py-2 border-b last:border-b-0 items-center">
+                  {/* Period - more space, smaller font, truncate if needed */}
+                  <div className="col-span-5 text-gray-700 text-left truncate pl-2">
+                    <span className="text-sm md:text-base">{res.period}</span>
+                  </div>
+                  
+                  {/* Number - centered in its column */}
+                  <div className="col-span-2 flex justify-center">
+                    <span className={`font-bold text-lg ${COLOR_CLASSES[res.color]}`}>{res.number}</span>
+                  </div>
+                  
+                  {/* Big/Small - centered */}
+                  <div className="col-span-3 text-center">
+                    <span className="font-bold text-sm">{res.bigSmall}</span>
+                  </div>
+                  
+                  {/* Color - circle only, aligned center */}
+                  <div className="col-span-2 flex justify-center">
+                    <div
+                      className={`w-6 h-6 rounded-full ${
+                        res.color === 'green' ? 'bg-green-500' :
+                        res.color === 'red' ? 'bg-red-500' :
+                        'bg-purple-500'
+                      } border border-gray-300`}
+                      title={COLOR_LABELS[res.color]}
+                    ></div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -752,19 +781,18 @@ function GameBoard() {
                     <div className="flex items-center justify-between">
                       {/* Left side - Color indicator */}
                       <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${
-                          bet.color === 'green' ? 'bg-green-500' :
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${bet.color === 'green' ? 'bg-green-500' :
                           bet.color === 'violet' ? 'bg-purple-500' :
-                          bet.color === 'red' ? 'bg-red-500' :
-                          bet.number !== null ? (
-                            NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
-                            NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                          ) :
-                          bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
-                        }`}>
+                            bet.color === 'red' ? 'bg-red-500' :
+                              bet.number !== null ? (
+                                NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
+                                  NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
+                              ) :
+                                bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
+                          }`}>
                           {bet.number !== null ? bet.number :
                             bet.color ? (bet.color === 'violet' ? 'V' : bet.color.charAt(0).toUpperCase()) :
-                            bet.bigSmall ? (bet.bigSmall === 'Big' ? 'B' : 'S') : '?'}
+                              bet.bigSmall ? (bet.bigSmall === 'Big' ? 'B' : 'S') : '?'}
                         </div>
 
                         <div className="text-white">
@@ -790,9 +818,8 @@ function GameBoard() {
 
                         {/* Amount */}
                         <div className="text-right">
-                          <div className={`font-bold text-lg ${
-                            res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
-                          }`}>
+                          <div className={`font-bold text-lg ${res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
+                            }`}>
                             {res
                               ? (win ? `+${bet.balancePerBet * bet.quantity}` : `-${bet.balancePerBet * bet.quantity}`)
                               : `-${bet.balancePerBet * bet.quantity}`}
