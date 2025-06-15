@@ -1,15 +1,60 @@
-import { useState } from 'react'
-import GameBoard from './components/GameBoard'
-import './App.css'
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import GameBoard from './components/GameBoard';
+import LoginPage from './components/LoginPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import './App.css';
 
-function App() {
-  const [bet, setBet] = useState(null)
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#111827] to-[#1f2937]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+function AppContent() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#111827] to-[#1f2937]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
-      <GameBoard bet={bet} setBet={setBet} />
-    </div>
-  )
+    <Router>
+      <Routes>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <GameBoard />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+export default App;

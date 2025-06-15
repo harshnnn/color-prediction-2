@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Timer from './Timer';
+import { useAuth } from '../context/AuthContext';
+
 
 const GAME_TYPES = [
   { label: 'Win Go 30Sec', duration: 30 },
@@ -56,6 +58,10 @@ function parsePeriodToUTCDate(period) {
 }
 
 function GameBoard() {
+
+    const { logout } = useAuth();
+
+
   const [gameType, setGameType] = useState(GAME_TYPES[0]);
   const [showBetModal, setShowBetModal] = useState(false);
   const [selectedColor, setSelectedColor] = useState(null);
@@ -78,6 +84,12 @@ function GameBoard() {
   const [wsReady, setWsReady] = useState(false);
   const [wsTimeout, setWsTimeout] = useState(false);
   const [balancePerBet, setBalancePerBet] = useState(1);
+  const [betPlacing, setBetPlacing] = useState(false);
+  const [betPlaceError, setBetPlaceError] = useState(null);
+  // Add these state variables for API bets (move to top-level with other useState)
+  const [apiBets, setApiBets] = useState([]);
+  const [betsLoading, setBetsLoading] = useState(false);
+  const [betsError, setBetsError] = useState(null);
 
   // 1. Fetch result history only once on mount
   useEffect(() => {
@@ -251,23 +263,57 @@ function GameBoard() {
     setQuantity(val);
   };
 
-  const handlePlaceBet = () => {
+  // Helper to get prediction string for API
+  const getPredictionString = () => {
+    if (selectedColor) return selectedColor;
+    if (selectedBigSmall) return selectedBigSmall.toLowerCase();
+    if (selectedNumber !== null && selectedNumber !== undefined) {
+      // Map 0-9 to "zero", "one", ..., "nine"
+      const numWords = ["zero","one","two","three","four","five","six","seven","eight","nine"];
+      return numWords[selectedNumber];
+    }
+    return "";
+  };
+
+  const handlePlaceBet = async () => {
     if (!agree || timeLeft <= 5 || showResult) return;
-    setBetHistory([
-      ...betHistory,
-      {
-        period,
-        color: selectedColor,
-        number: selectedNumber,
-        bigSmall: selectedBigSmall,
-        quantity,
-        balancePerBet, // Save this if you want to show it in bet history
-        totalAmount: balancePerBet * quantity, // Optional, for clarity
-        gameType: gameType.label,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-    setShowBetModal(false);
+    setBetPlaceError(null);
+    setBetPlacing(true);
+
+    const prediction = getPredictionString();
+    const amount = balancePerBet * quantity;
+    const payload = {
+      amount,
+      prediction,
+      period,
+    };
+
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setBetPlaceError("No authentication token found.");
+        setBetPlacing(false);
+        return;
+      }
+      const res = await fetch('https://color-prediction-742i.onrender.com/bets/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to place bet.");
+      }
+      // Optionally, you can update betHistory or refetch bets here
+      setShowBetModal(false);
+    } catch (err) {
+      setBetPlaceError(err.message || "Failed to place bet.");
+    } finally {
+      setBetPlacing(false);
+    }
   };
 
   // Format seconds as MM:SS
@@ -286,6 +332,36 @@ function GameBoard() {
     }
   }, [wsReady]);
 
+  // Fetch bets from API when "My Bets" tab is selected
+  useEffect(() => {
+    if (activeTab !== 'mybets') return;
+    setBetsLoading(true);
+    setBetsError(null);
+    setApiBets([]);
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setBetsError('No authentication token found.');
+      setBetsLoading(false);
+      return;
+    }
+    fetch('https://color-prediction-742i.onrender.com/bets', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch bets.');
+        return res.json();
+      })
+      .then(data => {
+        setApiBets(Array.isArray(data.bets) ? data.bets : []);
+      })
+      .catch(err => {
+        setBetsError(err.message || 'An error occurred.');
+      })
+      .finally(() => setBetsLoading(false));
+  }, [activeTab]);
+
   if (loading || !wsReady) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
@@ -301,9 +377,18 @@ function GameBoard() {
     );
   }
 
+  
   // Main wrapper with improved background gradient
   return (
     <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen p-4">
+       <div className="absolute top-4 right-4 z-10">
+        <button 
+          onClick={logout}
+          className="bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-colors"
+        >
+          Logout
+        </button>
+      </div>
       {/* Overlay for last 5 seconds */}
       {timeLeft <= 5 && !showResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent transition-all">
@@ -654,21 +739,32 @@ function GameBoard() {
                   <button
                     className="flex-1 bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white py-3 rounded-lg font-bold transition-all"
                     onClick={() => setShowBetModal(false)}
+                    disabled={betPlacing}
                   >
                     Cancel
                   </button>
                   <button
-                    className={`flex-1 py-3 rounded-lg font-bold ${agree && timeLeft > 5 && !showResult
+                    className={`flex-1 py-3 rounded-lg font-bold ${agree && timeLeft > 5 && !showResult && !betPlacing
                       ? 'bg-gradient-to-br from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white'
                       : 'bg-gradient-to-br from-green-600/50 to-green-700/50 text-white/70 cursor-not-allowed'
                       }`}
-                    disabled={!agree || timeLeft <= 5 || showResult}
+                    disabled={!agree || timeLeft <= 5 || showResult || betPlacing}
                     onClick={handlePlaceBet}
                   >
-                    <div className="flex flex-col items-center">
-                      <span>Place Bet</span>
-                      <span className="text-sm">{balancePerBet * quantity}</span>
-                    </div>
+                    {betPlacing ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Placing...
+                      </span>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <span>Place Bet</span>
+                        <span className="text-sm">{balancePerBet * quantity}</span>
+                      </div>
+                    )}
                   </button>
                 </div>
               </div>
@@ -746,99 +842,99 @@ function GameBoard() {
             </div>
           </div>
         ) : (
-          // My Bets Table
+          // My Bets Table (API)
           <div className="w-full">
-            <div className="space-y-2">
-              {betHistory.slice(-10).reverse().map((bet, idx) => {
-                // Find result for this bet
-                const res = resultHistory.find(r => r.period === bet.period);
-                let win = false;
-                if (res) {
-                  if (
-                    (bet.color && bet.color === res.color) ||
-                    (bet.number !== null && bet.number === res.number) ||
-                    (bet.bigSmall && bet.bigSmall === res.bigSmall)
-                  ) {
-                    win = true;
+            {betsLoading ? (
+              <div className="text-center text-blue-200 py-8">Loading your bets...</div>
+            ) : betsError ? (
+              <div className="text-center text-red-400 py-8">{betsError}</div>
+            ) : apiBets.length === 0 ? (
+              <div className="text-center text-blue-200 py-8">
+                <div className="text-4xl mb-2">🎲</div>
+                <div>No bets found</div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {apiBets.slice().reverse().map((bet, idx) => {
+                  // Try to match your card format
+                  // bet fields: amount, color, number, bigSmall, period, createdAt, etc.
+                  // Find result for this bet
+                  const res = resultHistory.find(r => r.period === bet.period);
+                  let win = false;
+                  if (res) {
+                    if (
+                      (bet.color && bet.color === res.color) ||
+                      (bet.number !== undefined && bet.number === res.number) ||
+                      (bet.bigSmall && bet.bigSmall === res.bigSmall)
+                    ) {
+                      win = true;
+                    }
                   }
-                }
-
-                // Use stored timestamp or generate current for older bets
-                const betTimestamp = bet.timestamp ? new Date(bet.timestamp) : new Date();
-                const dateStr = betTimestamp.toLocaleDateString('en-GB', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit'
-                }).replace(/\//g, '-');
-                const timeStr = betTimestamp.toLocaleTimeString('en-GB', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit'
-                });
-
-                return (
-                  <div key={idx} className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 shadow-lg">
-                    <div className="flex items-center justify-between">
-                      {/* Left side - Color indicator */}
-                      <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${bet.color === 'green' ? 'bg-green-500' :
-                          bet.color === 'violet' ? 'bg-purple-500' :
+                  const betTimestamp = bet.createdAt ? new Date(bet.createdAt) : new Date();
+                  const dateStr = betTimestamp.toLocaleDateString('en-GB', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  }).replace(/\//g, '-');
+                  const timeStr = betTimestamp.toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  });
+                  return (
+                    <div key={bet._id || idx} className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        {/* Left side - Color indicator */}
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${
+                            bet.color === 'green' ? 'bg-green-500' :
+                            bet.color === 'violet' ? 'bg-purple-500' :
                             bet.color === 'red' ? 'bg-red-500' :
-                              bet.number !== null ? (
-                                NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
-                                  NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                              ) :
-                                bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
+                            bet.number !== undefined && bet.number !== null ? (
+                              NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
+                              NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
+                            ) :
+                            bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
                           }`}>
-                          {bet.number !== null ? bet.number :
-                            bet.color ? (bet.color === 'violet' ? 'V' : bet.color.charAt(0).toUpperCase()) :
+                            {bet.number !== undefined && bet.number !== null ? bet.number :
+                              bet.color ? (bet.color === 'violet' ? 'V' : bet.color.charAt(0).toUpperCase()) :
                               bet.bigSmall ? (bet.bigSmall === 'Big' ? 'B' : 'S') : '?'}
+                          </div>
+                          <div className="text-white">
+                            <div className="font-bold text-lg">{bet.period}</div>
+                            <div className="text-blue-200 text-sm">{dateStr} {timeStr}</div>
+                          </div>
                         </div>
-
-                        <div className="text-white">
-                          <div className="font-bold text-lg">{bet.period}</div>
-                          <div className="text-blue-200 text-sm">{dateStr} {timeStr}</div>
-                        </div>
-                      </div>
-
-                      {/* Right side - Status and Amount */}
-                      <div className="flex items-center gap-4">
-                        {/* Status */}
-                        <div className="text-center">
-                          {res ? (
-                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${win ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                              {win ? 'Win' : 'Fail'}
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-white">
-                              Pending
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Amount */}
-                        <div className="text-right">
-                          <div className={`font-bold text-lg ${res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
-                            }`}>
-                            {res
-                              ? (win ? `+${bet.balancePerBet * bet.quantity}` : `-${bet.balancePerBet * bet.quantity}`)
-                              : `-${bet.balancePerBet * bet.quantity}`}
+                        {/* Right side - Status and Amount */}
+                        <div className="flex items-center gap-4">
+                          {/* Status */}
+                          <div className="text-center">
+                            {res ? (
+                              <span className={`px-3 py-1 rounded-full text-sm font-bold ${win ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                {win ? 'Win' : 'Fail'}
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-white">
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                          {/* Amount */}
+                          <div className="text-right">
+                            <div className={`font-bold text-lg ${res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
+                              }`}>
+                              {res
+                                ? (win ? `+${bet.amount}` : `-${bet.amount}`)
+                                : `-${bet.amount}`}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-
-              {/* Show message if no bets */}
-              {betHistory.length === 0 && (
-                <div className="text-center text-blue-200 py-8">
-                  <div className="text-4xl mb-2">🎲</div>
-                  <div>No bets placed yet</div>
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
