@@ -57,10 +57,50 @@ function parsePeriodToUTCDate(period) {
   return new Date(Date.UTC(year, month - 1, day, hour, min, sec));
 }
 
+// Helper to check if JWT is expired
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
+// Helper to refresh access token using refresh token
+async function getValidAccessToken() {
+  let accessToken = localStorage.getItem('access_token');
+  if (accessToken && !isTokenExpired(accessToken)) {
+    return accessToken;
+  }
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) {
+      // Remove tokens if refresh fails
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      return null;
+    }
+    const data = await res.json();
+    if (data.access_token) {
+      localStorage.setItem('access_token', data.access_token);
+      return data.access_token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function GameBoard() {
-
-    const { logout } = useAuth();
-
+  const { logout } = useAuth();
 
   const [gameType, setGameType] = useState(GAME_TYPES[0]);
   const [showBetModal, setShowBetModal] = useState(false);
@@ -90,6 +130,18 @@ function GameBoard() {
   const [apiBets, setApiBets] = useState([]);
   const [betsLoading, setBetsLoading] = useState(false);
   const [betsError, setBetsError] = useState(null);
+  // Transaction state
+  const [showUserPanel, setShowUserPanel] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsError, setTransactionsError] = useState(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   // 1. Fetch result history only once on mount
   useEffect(() => {
@@ -289,13 +341,13 @@ function GameBoard() {
     };
 
     try {
-      const token = localStorage.getItem('access_token');
+      let token = await getValidAccessToken();
       if (!token) {
         setBetPlaceError("No authentication token found.");
         setBetPlacing(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/bets/', {
+      const res = await fetch('https://color-prediction-742i.onrender.com/bets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -307,7 +359,6 @@ function GameBoard() {
         const errData = await res.json();
         throw new Error(errData.message || "Failed to place bet.");
       }
-      // Optionally, you can update betHistory or refetch bets here
       setShowBetModal(false);
     } catch (err) {
       setBetPlaceError(err.message || "Failed to place bet.");
@@ -332,35 +383,142 @@ function GameBoard() {
     }
   }, [wsReady]);
 
-  // Fetch bets from API when "My Bets" tab is selected
-  useEffect(() => {
-    if (activeTab !== 'mybets') return;
+  // Helper to fetch bets from API
+  const fetchApiBets = useCallback(async () => {
     setBetsLoading(true);
     setBetsError(null);
     setApiBets([]);
-    const token = localStorage.getItem('access_token');
+    let token = await getValidAccessToken();
     if (!token) {
       setBetsError('No authentication token found.');
       setBetsLoading(false);
       return;
     }
-    fetch('https://color-prediction-742i.onrender.com/bets', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch bets.');
-        return res.json();
-      })
-      .then(data => {
-        setApiBets(Array.isArray(data.bets) ? data.bets : []);
-      })
-      .catch(err => {
-        setBetsError(err.message || 'An error occurred.');
-      })
-      .finally(() => setBetsLoading(false));
-  }, [activeTab]);
+    try {
+      const res = await fetch('https://color-prediction-742i.onrender.com/bets', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error('Failed to fetch bets.');
+      const data = await res.json();
+      setApiBets(Array.isArray(data) ? data : (Array.isArray(data.bets) ? data.bets : []));
+    } catch (err) {
+      setBetsError(err.message || 'An error occurred.');
+    } finally {
+      setBetsLoading(false);
+    }
+  }, []);
+
+  // Fetch bets when "My Bets" tab is selected
+  useEffect(() => {
+    if (activeTab === 'mybets') {
+      fetchApiBets();
+    }
+  }, [activeTab, fetchApiBets]);
+
+  // Fetch bets when a new period starts (i.e., after result, new timer)
+  useEffect(() => {
+    if (activeTab === 'mybets' && period) {
+      fetchApiBets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
+
+  // Fetch bets after placing a bet (if on mybets tab)
+  useEffect(() => {
+    if (!betPlacing && activeTab === 'mybets' && showBetModal === false) {
+      fetchApiBets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [betPlacing, showBetModal]);
+
+  // Fetch transactions
+  const fetchTransactions = useCallback(async () => {
+    setTransactionsLoading(true);
+    setTransactionsError(null);
+    setTransactions([]);
+    let token = await getValidAccessToken();
+    if (!token) {
+      setTransactionsError('No authentication token found.');
+      setTransactionsLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch('https://color-prediction-742i.onrender.com/transactions', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error('Failed to fetch transactions.');
+      const data = await res.json();
+      // The API returns a nested array, so flatten it
+      let txns = Array.isArray(data) && Array.isArray(data[0]) ? data[0] : (Array.isArray(data) ? data : []);
+      setTransactions(txns);
+    } catch (err) {
+      setTransactionsError(err.message || 'An error occurred.');
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }, []);
+
+  // Open user panel and fetch transactions
+  const handleOpenUserPanel = () => {
+    setShowUserPanel(true);
+    fetchTransactions();
+  };
+
+  // Change password handler
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangePasswordError('');
+    setChangePasswordSuccess('');
+    if (!oldPassword || !newPassword || !confirmNewPassword) {
+      setChangePasswordError('All fields are required.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setChangePasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError('New passwords do not match.');
+      return;
+    }
+    setChangePasswordLoading(true);
+    try {
+      let token = await getValidAccessToken();
+      if (!token) {
+        setChangePasswordError('No authentication token found.');
+        setChangePasswordLoading(false);
+        return;
+      }
+      const res = await fetch('https://color-prediction-742i.onrender.com/users/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          old_password: oldPassword,
+          new_password: newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to change password.');
+      }
+      setChangePasswordSuccess('Password changed successfully!');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setShowChangePassword(false);
+    } catch (err) {
+      setChangePasswordError(err.message || 'Failed to change password.');
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
 
   if (loading || !wsReady) {
     return (
@@ -381,14 +539,153 @@ function GameBoard() {
   // Main wrapper with improved background gradient
   return (
     <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen p-4">
-       <div className="absolute top-4 right-4 z-10">
-        <button 
-          onClick={logout}
-          className="bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-colors"
+      {/* User Management Panel Button */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={handleOpenUserPanel}
+          className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-colors"
         >
-          Logout
+          Account
         </button>
       </div>
+
+      {/* User Management Panel */}
+      {showUserPanel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+          <div className="bg-gradient-to-b from-blue-600 to-blue-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto relative border border-blue-300">
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-blue-400">
+              <h2 className="text-white text-xl font-bold">User Management</h2>
+              <button
+                onClick={() => setShowUserPanel(false)}
+                className="text-white text-2xl font-bold hover:text-blue-200"
+              >
+                ×
+              </button>
+            </div>
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Actions */}
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <button
+                  onClick={() => setShowChangePassword((v) => !v)}
+                  className="flex-1 bg-gradient-to-br from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white py-3 rounded-lg font-bold shadow-md transition-all"
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => { setShowUserPanel(false); logout(); }}
+                  className="flex-1 bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white py-3 rounded-lg font-bold shadow-md transition-all"
+                >
+                  Logout
+                </button>
+              </div>
+              {/* Change Password Form */}
+              {showChangePassword && (
+                <form onSubmit={handleChangePassword} className="bg-blue-900 bg-opacity-60 rounded-lg p-4 space-y-3">
+                  <div className="text-white font-bold mb-2">Change Password</div>
+                  {changePasswordError && (
+                    <div className="text-red-300 text-sm">{changePasswordError}</div>
+                  )}
+                  {changePasswordSuccess && (
+                    <div className="text-green-300 text-sm">{changePasswordSuccess}</div>
+                  )}
+                  <input
+                    type="password"
+                    placeholder="Old Password"
+                    className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
+                    value={oldPassword}
+                    onChange={e => setOldPassword(e.target.value)}
+                  />
+                  <input
+                    type="password"
+                    placeholder="New Password"
+                    className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirm New Password"
+                    className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
+                    value={confirmNewPassword}
+                    onChange={e => setConfirmNewPassword(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    disabled={changePasswordLoading}
+                    className="w-full bg-gradient-to-br from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white py-2 rounded-lg font-bold mt-2"
+                  >
+                    {changePasswordLoading ? 'Changing...' : 'Change Password'}
+                  </button>
+                </form>
+              )}
+              {/* Transactions */}
+              <div>
+                <div className="text-white font-bold mb-2">Transactions</div>
+                {transactionsLoading ? (
+                  <div className="text-blue-200 py-4">Loading transactions...</div>
+                ) : transactionsError ? (
+                  <div className="text-red-300 py-4">{transactionsError}</div>
+                ) : transactions.length === 0 ? (
+                  <div className="text-blue-200 py-4">No transactions found.</div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {[...transactions].reverse().map((txn, idx) => {
+                      // Map type_ to friendly label and color
+                      let typeLabel = '';
+                      let typeColor = '';
+                      if (txn.type_ === 'bet') {
+                        typeLabel = 'Bet Placed';
+                        typeColor = 'bg-blue-700 text-blue-200';
+                      } else if (txn.type_ === 'deposit') {
+                        typeLabel = 'Deposit';
+                        typeColor = 'bg-green-700 text-green-200';
+                      } else if (txn.type_ === 'withdraw') {
+                        typeLabel = 'Withdrawal';
+                        typeColor = 'bg-red-700 text-red-200';
+                      } else {
+                        typeLabel = txn.type_ || 'Transaction';
+                        typeColor = 'bg-gray-700 text-gray-200';
+                      }
+                      // Format date/time
+                      const dateStr = txn.created_at
+                        ? new Date(txn.created_at).toLocaleString()
+                        : '';
+                      // Amount with sign
+                      const amount = txn.amount;
+                      const amountStr = amount > 0 ? `+${amount}` : `${amount}`;
+                      const amountColor =
+                        amount > 0
+                          ? 'text-green-400'
+                          : amount < 0
+                          ? 'text-red-400'
+                          : 'text-blue-200';
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-3 flex justify-between items-center shadow"
+                        >
+                          <div>
+                            <div className={`font-bold px-2 py-1 rounded ${typeColor} inline-block mb-1`}>
+                              {typeLabel}
+                            </div>
+                            <div className="text-blue-200 text-xs">{dateStr}</div>
+                          </div>
+                          <div className={`font-bold text-lg ${amountColor}`}>
+                            {amountStr}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Overlay for last 5 seconds */}
       {timeLeft <= 5 && !showResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent transition-all">
@@ -855,63 +1152,130 @@ function GameBoard() {
               </div>
             ) : (
               <div className="space-y-2">
-                {apiBets.slice().reverse().map((bet, idx) => {
-                  // Try to match your card format
-                  // bet fields: amount, color, number, bigSmall, period, createdAt, etc.
+                {/* Show newest bets at the top */}
+                {[...apiBets].map((bet, idx) => {
+                  // Map API fields to display fields
+                  const period = bet.period;
+                  const prediction = bet.prediction;
+                  const amount = bet.stake;
+                  const status = bet.status;
+                  const profit = bet.profit;
+
+                  // Determine color/number/bigSmall for display
+                  let displayType = '';
+                  let displayValue = '';
+                  let colorClass = '';
+                  if (
+                    ["green", "red", "violet"].includes(prediction)
+                  ) {
+                    displayType = "color";
+                    displayValue = prediction.charAt(0).toUpperCase();
+                    colorClass =
+                      prediction === "green"
+                        ? "bg-green-500"
+                        : prediction === "red"
+                        ? "bg-red-500"
+                        : "bg-purple-500";
+                  } else if (
+                    ["small", "big"].includes(prediction)
+                  ) {
+                    displayType = "bigSmall";
+                    displayValue = prediction === "big" ? "B" : "S";
+                    colorClass =
+                      prediction === "big"
+                        ? "bg-blue-500"
+                        : "bg-orange-500";
+                  } else {
+                    // number prediction: "zero", "one", ..., "nine"
+                    displayType = "number";
+                    const numWords = [
+                      "zero",
+                      "one",
+                      "two",
+                      "three",
+                      "four",
+                      "five",
+                      "six",
+                      "seven",
+                      "eight",
+                      "nine",
+                    ];
+                    const numIdx = numWords.indexOf(prediction);
+                    displayValue = numIdx !== -1 ? numIdx : "?";
+                    colorClass =
+                      numIdx !== -1
+                        ? NUMBER_COLORS[numIdx] === "green"
+                          ? "bg-green-500"
+                          : NUMBER_COLORS[numIdx] === "red"
+                          ? "bg-red-500"
+                          : "bg-purple-500"
+                        : "bg-gray-500";
+                  }
+
                   // Find result for this bet
-                  const res = resultHistory.find(r => r.period === bet.period);
+                  const res = resultHistory.find((r) => r.period === period);
                   let win = false;
-                  if (res) {
+                  if (res && status === "settled") {
                     if (
-                      (bet.color && bet.color === res.color) ||
-                      (bet.number !== undefined && bet.number === res.number) ||
-                      (bet.bigSmall && bet.bigSmall === res.bigSmall)
+                      (displayType === "color" && prediction === res.color) ||
+                      (displayType === "number" &&
+                        displayValue !== "?" &&
+                        Number(displayValue) === res.number) ||
+                      (displayType === "bigSmall" &&
+                        prediction === res.bigSmall.toLowerCase())
                     ) {
-                      win = true;
+                      win = profit > 0;
                     }
                   }
-                  const betTimestamp = bet.createdAt ? new Date(bet.createdAt) : new Date();
-                  const dateStr = betTimestamp.toLocaleDateString('en-GB', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  }).replace(/\//g, '-');
-                  const timeStr = betTimestamp.toLocaleTimeString('en-GB', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  });
+
+                  // Use placed_at for date/time display
+                  const placedAt = bet.placed_at;
+                  const dateObj = placedAt ? new Date(placedAt) : null;
+                  const dateStr = dateObj
+                    ? dateObj.toLocaleDateString("en-GB", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                      }).replace(/\//g, "-")
+                    : "";
+                  const timeStr = dateObj
+                    ? dateObj.toLocaleTimeString("en-GB", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })
+                    : "";
+
                   return (
-                    <div key={bet._id || idx} className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 shadow-lg">
+                    <div key={idx} className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 shadow-lg">
                       <div className="flex items-center justify-between">
-                        {/* Left side - Color indicator */}
+                        {/* Left side - Color/Number/BigSmall indicator */}
                         <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${
-                            bet.color === 'green' ? 'bg-green-500' :
-                            bet.color === 'violet' ? 'bg-purple-500' :
-                            bet.color === 'red' ? 'bg-red-500' :
-                            bet.number !== undefined && bet.number !== null ? (
-                              NUMBER_COLORS[bet.number] === 'green' ? 'bg-green-500' :
-                              NUMBER_COLORS[bet.number] === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                            ) :
-                            bet.bigSmall === 'Big' ? 'bg-blue-500' : 'bg-orange-500'
-                          }`}>
-                            {bet.number !== undefined && bet.number !== null ? bet.number :
-                              bet.color ? (bet.color === 'violet' ? 'V' : bet.color.charAt(0).toUpperCase()) :
-                              bet.bigSmall ? (bet.bigSmall === 'Big' ? 'B' : 'S') : '?'}
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${colorClass}`}
+                          >
+                            {displayValue}
                           </div>
                           <div className="text-white">
-                            <div className="font-bold text-lg">{bet.period}</div>
-                            <div className="text-blue-200 text-sm">{dateStr} {timeStr}</div>
+                            <div className="font-bold text-lg">{period}</div>
+                            <div className="text-blue-200 text-sm">
+                              {dateStr} {timeStr}
+                            </div>
                           </div>
                         </div>
                         {/* Right side - Status and Amount */}
                         <div className="flex items-center gap-4">
                           {/* Status */}
                           <div className="text-center">
-                            {res ? (
-                              <span className={`px-3 py-1 rounded-full text-sm font-bold ${win ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                {win ? 'Win' : 'Fail'}
+                            {status === "settled" ? (
+                              <span
+                                className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                  win
+                                    ? "bg-green-500 text-white"
+                                    : "bg-red-500 text-white"
+                                }`}
+                              >
+                                {win ? "Win" : "Fail"}
                               </span>
                             ) : (
                               <span className="px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-white">
@@ -921,11 +1285,20 @@ function GameBoard() {
                           </div>
                           {/* Amount */}
                           <div className="text-right">
-                            <div className={`font-bold text-lg ${res ? (win ? 'text-green-400' : 'text-red-400') : 'text-yellow-400'
-                              }`}>
-                              {res
-                                ? (win ? `+${bet.amount}` : `-${bet.amount}`)
-                                : `-${bet.amount}`}
+                            <div
+                              className={`font-bold text-lg ${
+                                status === "settled"
+                                  ? win
+                                    ? "text-green-400"
+                                    : "text-red-400"
+                                  : "text-yellow-400"
+                              }`}
+                            >
+                              {status === "settled"
+                                ? win
+                                  ? `+${profit}`
+                                  : `-${amount}`
+                                : `-${amount}`}
                             </div>
                           </div>
                         </div>
