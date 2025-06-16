@@ -41,7 +41,18 @@ export const AuthProvider = ({ children }) => {
       const signupData = await signupResponse.json();
       
       if (!signupResponse.ok) {
-        throw new Error(signupData.message || 'Registration failed');
+        // Compose a detailed error message using backend error
+        let backendMsg = signupData.message || signupData.detail || '';
+        let errorMsg = 'Registration failed';
+        if (backendMsg) {
+          // Custom handling for unique constraint error
+          if (backendMsg.includes('UNIQUE constraint failed: user.username')) {
+            errorMsg += ': username already exists';
+          } else {
+            errorMsg += `: ${backendMsg}`;
+          }
+        }
+        throw new Error(errorMsg);
       }
 
       // If registration successful, automatically log them in
@@ -68,7 +79,13 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        // Compose a detailed error message using backend error
+        let backendMsg = data.message || data.detail || '';
+        let errorMsg = 'Login failed';
+        if (backendMsg) {
+          errorMsg += `: ${backendMsg}`;
+        }
+        throw new Error(errorMsg);
       }
 
       // Store tokens

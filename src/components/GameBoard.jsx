@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Timer from './Timer';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 
 const GAME_TYPES = [
@@ -57,17 +60,6 @@ function parsePeriodToUTCDate(period) {
   return new Date(Date.UTC(year, month - 1, day, hour, min, sec));
 }
 
-// Helper to check if JWT is expired
-function isTokenExpired(token) {
-  if (!token) return true;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.exp * 1000 < Date.now();
-  } catch {
-    return true;
-  }
-}
-
 // Helper to refresh access token using refresh token
 async function getValidAccessToken() {
   let accessToken = localStorage.getItem('access_token');
@@ -101,6 +93,7 @@ async function getValidAccessToken() {
 
 function GameBoard() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const [gameType, setGameType] = useState(GAME_TYPES[0]);
   const [showBetModal, setShowBetModal] = useState(false);
@@ -142,6 +135,62 @@ function GameBoard() {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  // Helper to refresh access token using refresh token
+  const tryRefreshToken = useCallback(async () => {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) return null;
+    try {
+      const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) {
+        // Remove tokens if refresh fails
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        navigate('/login', { replace: true });
+        return null;
+      }
+      const data = await res.json();
+      if (data.access_token) {
+        localStorage.setItem('access_token', data.access_token);
+        return data.access_token;
+      }
+      navigate('/login', { replace: true });
+      return null;
+    } catch {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      navigate('/login', { replace: true });
+      return null;
+    }
+  }, [navigate]);
+
+  // Helper to check if JWT is expired
+  function isTokenExpired(token) {
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
+  // Helper to get a valid access token, refresh if needed, redirect if refresh fails
+  const getValidAccessToken = useCallback(async () => {
+    let accessToken = localStorage.getItem('access_token');
+    if (accessToken && !isTokenExpired(accessToken)) {
+      return accessToken;
+    }
+    // Try to refresh
+    const refreshed = await tryRefreshToken();
+    if (refreshed) return refreshed;
+    // If refresh fails, navigate to login (handled in tryRefreshToken)
+    return null;
+  }, [tryRefreshToken]);
 
   // 1. Fetch result history only once on mount
   useEffect(() => {
@@ -344,6 +393,7 @@ function GameBoard() {
       let token = await getValidAccessToken();
       if (!token) {
         setBetPlaceError("No authentication token found.");
+        toast.error("No authentication token found.", { position: "top-center" });
         setBetPlacing(false);
         return;
       }
@@ -355,13 +405,20 @@ function GameBoard() {
         },
         body: JSON.stringify(payload),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to place bet.");
+        // Show backend error in toast
+        const backendMsg = data.message || data.detail || "Failed to place bet.";
+        setBetPlaceError(backendMsg);
+        toast.error(`Bet failed: ${backendMsg}`, { position: "top-center" });
+        setBetPlacing(false);
+        return;
       }
       setShowBetModal(false);
+      toast.success(`Bet of amount ${amount} placed successfully.`, { position: "top-center" });
     } catch (err) {
       setBetPlaceError(err.message || "Failed to place bet.");
+      toast.error(`Bet failed: ${err.message || "Failed to place bet."}`, { position: "top-center" });
     } finally {
       setBetPlacing(false);
     }
@@ -539,15 +596,21 @@ function GameBoard() {
   // Main wrapper with improved background gradient
   return (
     <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen p-4">
-      {/* User Management Panel Button */}
-      <div className="absolute top-4 right-4 z-20">
-        <button
-          onClick={handleOpenUserPanel}
-          className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-colors"
-        >
+      <ToastContainer />
+      {/* Floating Account FAB */}
+      <button
+        onClick={handleOpenUserPanel}
+        className="fixed bottom-6 right-6 z-30 bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full shadow-2xl w-16 h-16 flex flex-col items-center justify-center text-lg font-bold transition-all group"
+        title="Account"
+        aria-label="Account"
+      >
+        <span className="text-2xl mb-1">👤</span>
+        <span className="text-xs font-semibold">Account</span>
+        {/* Tooltip */}
+        <span className="absolute bottom-20 right-1/2 translate-x-1/2 opacity-0 group-hover:opacity-100 bg-blue-700 text-white text-xs rounded px-3 py-1 shadow transition-opacity pointer-events-none">
           Account
-        </button>
-      </div>
+        </span>
+      </button>
 
       {/* User Management Panel */}
       {showUserPanel && (
@@ -1152,7 +1215,6 @@ function GameBoard() {
               </div>
             ) : (
               <div className="space-y-2">
-                {/* Show newest bets at the top */}
                 {[...apiBets].map((bet, idx) => {
                   // Map API fields to display fields
                   const period = bet.period;
@@ -1246,6 +1308,20 @@ function GameBoard() {
                       })
                     : "";
 
+                  // Amount display logic as per requirements
+                  let amountDisplay = "";
+                  let amountColor = "";
+                  if (status === "open") {
+                    amountDisplay = `-${amount}`;
+                    amountColor = "text-yellow-400";
+                  } else if (status === "settled" && profit === 0.0) {
+                    amountDisplay = `-${amount}`;
+                    amountColor = "text-red-400";
+                  } else if (status === "settled" && profit !== 0.0) {
+                    amountDisplay = `+${profit}`;
+                    amountColor = "text-green-400";
+                  }
+
                   return (
                     <div key={idx} className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 shadow-lg">
                       <div className="flex items-center justify-between">
@@ -1270,12 +1346,12 @@ function GameBoard() {
                             {status === "settled" ? (
                               <span
                                 className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                  win
+                                  profit > 0
                                     ? "bg-green-500 text-white"
                                     : "bg-red-500 text-white"
                                 }`}
                               >
-                                {win ? "Win" : "Fail"}
+                                {profit > 0 ? "Win" : "Fail"}
                               </span>
                             ) : (
                               <span className="px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-white">
@@ -1285,20 +1361,8 @@ function GameBoard() {
                           </div>
                           {/* Amount */}
                           <div className="text-right">
-                            <div
-                              className={`font-bold text-lg ${
-                                status === "settled"
-                                  ? win
-                                    ? "text-green-400"
-                                    : "text-red-400"
-                                  : "text-yellow-400"
-                              }`}
-                            >
-                              {status === "settled"
-                                ? win
-                                  ? `+${profit}`
-                                  : `-${amount}`
-                                : `-${amount}`}
+                            <div className={`font-bold text-lg ${amountColor}`}>
+                              {amountDisplay}
                             </div>
                           </div>
                         </div>

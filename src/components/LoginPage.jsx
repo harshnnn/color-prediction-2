@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
@@ -11,6 +13,13 @@ function LoginPage() {
   
   const { login, signup, error } = useAuth();
 
+  // Show toast for error or success
+  useEffect(() => {
+    if (error) {
+      toast.error(error, { position: "top-center" });
+    }
+  }, [error]);
+
   const toggleMode = () => {
     setIsLoginMode(!isLoginMode);
     setErrorMessage('');
@@ -20,53 +29,65 @@ function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage('');
-    
+
     if (!username.trim() || !password.trim()) {
       setErrorMessage('Please enter both username and password');
+      toast.error('Please enter both username and password', { position: "top-center" });
       setIsLoading(false);
       return;
     }
 
     if (!isLoginMode && password !== confirmPassword) {
       setErrorMessage('Passwords do not match');
+      toast.error('Passwords do not match', { position: "top-center" });
       setIsLoading(false);
       return;
     }
-    
+
     try {
       let success;
-      
+
       if (isLoginMode) {
         success = await login(username, password);
+        if (success) {
+          toast.success('Logged in successfully!', { position: "top-center" });
+        }
       } else {
         // In signup mode
         if (password.length < 6) {
           setErrorMessage('Password must be at least 6 characters');
+          toast.error('Password must be at least 6 characters', { position: "top-center" });
           setIsLoading(false);
           return;
         }
         success = await signup(username, password);
+        if (success) {
+          toast.success('Account created successfully!', { position: "top-center" });
+        }
       }
-      
+
       setIsLoading(false);
-      
+
       if (!success && error) {
         setErrorMessage(error);
+        toast.error(error, { position: "top-center" });
       }
     } catch (err) {
       setErrorMessage('An unexpected error occurred. Please try again.');
+      toast.error('An unexpected error occurred. Please try again.', { position: "top-center" });
       setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#111827] to-[#1f2937] p-4">
+      <ToastContainer />
       <div className="w-full max-w-md">
         <div className="bg-gradient-to-b from-blue-500 to-blue-700 rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="py-8 px-6 text-center">
             <h1 className="text-white text-3xl font-bold mb-2">Color Prediction</h1>
-            <p className="text-blue-200">{isLoginMode ? 'Sign in to continue' : 'Create an account'}</p>
+            <p className="text-blue-200">{isLoginMode ? 'Log in to continue' : 'Create an account'}</p>
           </div>
           
           {/* Toggle buttons */}
@@ -167,7 +188,7 @@ function LoginPage() {
                       </svg>
                       {isLoginMode ? 'Signing in...' : 'Creating account...'}
                     </span>
-                  ) : isLoginMode ? "Sign In" : "Create Account"}
+                  ) : isLoginMode ? "Log In" : "Create Account"}
                 </button>
               </div>
 
