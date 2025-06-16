@@ -136,6 +136,11 @@ function GameBoard() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
+  // User info state
+  const [userInfo, setUserInfo] = useState({ username: '', balance: null });
+  const [userInfoLoading, setUserInfoLoading] = useState(false);
+  const [userInfoError, setUserInfoError] = useState(null);
+
   // Helper to refresh access token using refresh token
   const tryRefreshToken = useCallback(async () => {
     const refreshToken = localStorage.getItem('refresh_token');
@@ -577,6 +582,60 @@ function GameBoard() {
     }
   };
 
+  // Fetch user info (balance and username)
+  const fetchUserInfo = useCallback(async () => {
+    setUserInfoLoading(true);
+    setUserInfoError(null);
+    try {
+      const token = await getValidAccessToken();
+      if (!token) {
+        setUserInfoError('No authentication token found.');
+        setUserInfoLoading(false);
+        return;
+      }
+      const res = await fetch('https://color-prediction-742i.onrender.com/users/', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        setUserInfoError('Failed to fetch user info');
+        setUserInfoLoading(false);
+        return;
+      }
+      const data = await res.json();
+      // The API returns an array with one object
+      const userObj = Array.isArray(data) && data.length > 0 ? data[0] : {};
+      setUserInfo({
+        username: userObj.username || '',
+        balance: userObj.wallet && typeof userObj.wallet.balance === 'number' ? userObj.wallet.balance : null,
+      });
+    } catch (err) {
+      setUserInfoError('Failed to fetch user info');
+    } finally {
+      setUserInfoLoading(false);
+    }
+  }, [getValidAccessToken]);
+
+  // Fetch user info after successful bet placement
+  useEffect(() => {
+    // Only fetch if bet was just placed successfully (showBetModal just closed and not placing)
+    if (!betPlacing && showBetModal === false) {
+      fetchUserInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [betPlacing, showBetModal]);
+
+  // Fetch user info after result comes (when showResult goes from true to false)
+  useEffect(() => {
+    // Only fetch when result modal closes (showResult goes false)
+    if (!showResult) {
+      fetchUserInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showResult]);
+
   if (loading || !wsReady) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
@@ -597,20 +656,44 @@ function GameBoard() {
   return (
     <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen p-4">
       <ToastContainer />
-      {/* Floating Account FAB */}
-      <button
-        onClick={handleOpenUserPanel}
-        className="fixed bottom-6 right-6 z-30 bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full shadow-2xl w-16 h-16 flex flex-col items-center justify-center text-lg font-bold transition-all group"
-        title="Account"
-        aria-label="Account"
-      >
-        <span className="text-2xl mb-1">👤</span>
-        <span className="text-xs font-semibold">Account</span>
-        {/* Tooltip */}
-        <span className="absolute bottom-20 right-1/2 translate-x-1/2 opacity-0 group-hover:opacity-100 bg-blue-700 text-white text-xs rounded px-3 py-1 shadow transition-opacity pointer-events-none">
-          Account
-        </span>
-      </button>
+
+      {/* Nav Bar */}
+      <nav className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg mb-4" style={{ minHeight: 54 }}>
+        {/* Logo (left) */}
+        <div className="flex items-center gap-2">
+          <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>
+            69<span className="text-white">EXCH</span>
+          </span>
+        </div>
+        {/* Account Button (right) with balance below */}
+        <div className="flex flex-col items-center">
+          <button
+            onClick={handleOpenUserPanel}
+            className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+            title="Account"
+            aria-label="Account"
+          >
+            {/* User icon SVG */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+              <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
+            </svg>
+          </button>
+          {/* Balance display */}
+          <div className="mt-1 text-xs text-white font-semibold bg-blue-900 bg-opacity-70 px-3 py-1 rounded-lg shadow border border-blue-700 min-w-[90px] text-right">
+            {userInfoLoading ? (
+              <span className="text-blue-200">Loading...</span>
+            ) : userInfoError ? (
+              <span className="text-red-300">--</span>
+            ) : (
+              <>
+                <span className="text-yellow-300">₹</span>
+                <span className="ml-1">{userInfo.balance !== null ? userInfo.balance : '--'}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
 
       {/* User Management Panel */}
       {showUserPanel && (
@@ -951,19 +1034,19 @@ function GameBoard() {
         {/* Color Buttons - Enhanced with glassmorphism */}
         <div className="flex gap-2 mb-5 w-full justify-center">
           <button
-            className="bg-gradient-to-br from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white w-full px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
+            className="bg-gradient-to-br from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white w-full px-8 py-4 rounded-xl font-medium text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
             onClick={() => handleColorClick('green')}
           >
             Green
           </button>
           <button
-            className="bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700 text-white w-full px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
+            className="bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700 text-white w-full px-8 py-4 rounded-xl font-medium text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
             onClick={() => handleColorClick('violet')}
           >
             Violet
           </button>
           <button
-            className="bg-gradient-to-br from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 text-white w-full px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
+            className="bg-gradient-to-br from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 text-white w-full px-8 py-4 rounded-xl font-medium text-lg transition-all shadow-lg transform hover:scale-105 hover:shadow-xl"
             onClick={() => handleColorClick('red')}
           >
             Red
@@ -977,7 +1060,7 @@ function GameBoard() {
             {[0, 1, 2, 3, 4].map((num) => (
               <button
                 key={num}
-                className={`w-14 h-14 rounded-full font-bold text-white text-xl flex items-center justify-center transition-all transform hover:scale-110 shadow-lg ${NUMBER_COLORS[num] === 'green' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                className={`w-14 h-14 rounded-full font-medium text-white text-xl flex items-center justify-center transition-all transform hover:scale-110 shadow-lg ${NUMBER_COLORS[num] === 'green' ? 'bg-gradient-to-br from-green-400 to-green-600' :
                   NUMBER_COLORS[num] === 'red' ? 'bg-gradient-to-br from-red-400 to-red-600' :
                     'bg-gradient-to-br from-purple-400 to-purple-600'
                   }`}
@@ -993,7 +1076,7 @@ function GameBoard() {
             {[5, 6, 7, 8, 9].map((num) => (
               <button
                 key={num}
-                className={`w-14 h-14 rounded-full font-bold text-white text-xl flex items-center justify-center transition-all transform hover:scale-110 shadow-lg ${NUMBER_COLORS[num] === 'green' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                className={`w-14 h-14 rounded-full font-medium text-white text-xl flex items-center justify-center transition-all transform hover:scale-110 shadow-lg ${NUMBER_COLORS[num] === 'green' ? 'bg-gradient-to-br from-green-400 to-green-600' :
                   NUMBER_COLORS[num] === 'red' ? 'bg-gradient-to-br from-red-400 to-red-600' :
                     'bg-gradient-to-br from-purple-400 to-purple-600'
                   }`}
@@ -1008,13 +1091,13 @@ function GameBoard() {
         {/* Big/Small Buttons - Enhanced design */}
         <div className="flex gap-3 mb-6 w-full max-w-md mx-auto justify-center">
           <button
-            className="bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white w-full px-8 py-3 rounded-xl font-bold shadow-lg transform hover:scale-105 transition-all"
+            className="bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white w-full px-8 py-3 rounded-xl font-medium shadow-lg transform hover:scale-105 transition-all"
             onClick={() => handleBigSmallClick('Small')}
           >
             Small (0-4)
           </button>
           <button
-            className="bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white w-full px-8 py-3 rounded-xl font-bold shadow-lg transform hover:scale-105 transition-all"
+            className="bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white w-full px-8 py-3 rounded-xl font-medium shadow-lg transform hover:scale-105 transition-all"
             onClick={() => handleBigSmallClick('Big')}
           >
             Big (5-9)
@@ -1031,7 +1114,7 @@ function GameBoard() {
                 : 'bg-gradient-to-b from-blue-500 to-blue-600'
                 }`}>
                 {/* Header content remains the same */}
-                <div className="text-white font-bold text-xl">{gameType.label}</div>
+                <div className="text-white font-meduim text-xl">{gameType.label}</div>
                 {/* Selection display logic... */}
               </div>
 
@@ -1046,7 +1129,7 @@ function GameBoard() {
                         className={`${balancePerBet === amt
                           ? 'bg-gradient-to-br from-green-500 to-green-600 ring-2 ring-green-300 text-white'
                           : 'bg-gradient-to-br from-gray-700 to-gray-800 text-gray-200 hover:from-blue-600 hover:to-blue-700'
-                          } px-3 py-2 rounded font-bold transition-all`}
+                          } px-3 py-2 rounded font-medium transition-all`}
                         onClick={() => setBalancePerBet(amt)}
                       >
                         {amt}
@@ -1059,9 +1142,9 @@ function GameBoard() {
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-white text-lg">Quantity</span>
                   <div className="flex items-center gap-2">
-                    <button className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white w-9 h-9 rounded-full flex items-center justify-center text-xl font-bold transition-all" onClick={() => handleQuantity(-1)}>-</button>
-                    <span className="bg-gray-800 text-white px-4 py-2 rounded min-w-[40px] text-center font-bold">{quantity}</span>
-                    <button className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white w-9 h-9 rounded-full flex items-center justify-center text-xl font-bold transition-all" onClick={() => handleQuantity(1)}>+</button>
+                    <button className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white w-9 h-9 rounded-full flex items-center justify-center text-xl font-medium transition-all" onClick={() => handleQuantity(-1)}>-</button>
+                    <span className="bg-gray-800 text-white px-4 py-2 rounded min-w-[40px] text-center font-medium">{quantity}</span>
+                    <button className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white w-9 h-9 rounded-full flex items-center justify-center text-xl font-medium transition-all" onClick={() => handleQuantity(1)}>+</button>
                   </div>
                 </div>
 
@@ -1070,7 +1153,7 @@ function GameBoard() {
                   {[1, 5, 10, 20, 50, 100].map((val) => (
                     <button
                       key={val}
-                      className={`py-2 rounded font-bold transition-all ${quantity === val
+                      className={`py-2 rounded font-medium transition-all ${quantity === val
                         ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg'
                         : 'bg-gradient-to-br from-gray-700 to-gray-800 text-white hover:from-gray-600 hover:to-gray-700'
                         }`}
@@ -1097,14 +1180,14 @@ function GameBoard() {
                 {/* Action Buttons - Enhanced */}
                 <div className="flex gap-3">
                   <button
-                    className="flex-1 bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white py-3 rounded-lg font-bold transition-all"
+                    className="flex-1 bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white py-3 rounded-lg font-medium transition-all"
                     onClick={() => setShowBetModal(false)}
                     disabled={betPlacing}
                   >
                     Cancel
                   </button>
                   <button
-                    className={`flex-1 py-3 rounded-lg font-bold ${agree && timeLeft > 5 && !showResult && !betPlacing
+                    className={`flex-1 py-3 rounded-lg font-medium ${agree && timeLeft > 5 && !showResult && !betPlacing
                       ? 'bg-gradient-to-br from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white'
                       : 'bg-gradient-to-br from-green-600/50 to-green-700/50 text-white/70 cursor-not-allowed'
                       }`}
@@ -1138,7 +1221,7 @@ function GameBoard() {
         {/* Tabs for History and My Bets - Enhanced */}
         <div className="flex gap-2 mb-3 w-full justify-center">
           <button
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'history'
+            className={`px-6 py-2 rounded-full font-medium transition-all ${activeTab === 'history'
                 ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
@@ -1147,7 +1230,7 @@ function GameBoard() {
             Game History
           </button>
           <button
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'mybets'
+            className={`px-6 py-2 rounded-full font-medium transition-all ${activeTab === 'mybets'
                 ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
@@ -1162,7 +1245,7 @@ function GameBoard() {
           // Game History Table with mobile-responsive grid
           <div className="w-full">
             {/* Table Header - Mobile responsive */}
-            <div className="bg-blue-900 text-white rounded-t-lg px-2 py-2 grid grid-cols-12 gap-1 font-bold">
+            <div className="bg-blue-900 text-white rounded-t-lg px-2 py-2 grid grid-cols-12 gap-1 font-medium">
               <div className="col-span-5 text-left pl-2">Period</div>
               <div className="col-span-2 text-center">No.</div>
               <div className="col-span-3 text-center">Big/Small</div>
@@ -1178,12 +1261,12 @@ function GameBoard() {
                   
                   {/* Number - centered in its column */}
                   <div className="col-span-2 flex justify-center">
-                    <span className={`font-bold text-lg ${COLOR_CLASSES[res.color]}`}>{res.number}</span>
+                    <span className={`font-medium text-lg ${COLOR_CLASSES[res.color]}`}>{res.number}</span>
                   </div>
                   
                   {/* Big/Small - centered */}
                   <div className="col-span-3 text-center">
-                    <span className="font-bold text-sm">{res.bigSmall}</span>
+                    <span className="font-medium text-sm">{res.bigSmall}</span>
                   </div>
                   
                   {/* Color - circle only, aligned center */}
@@ -1328,12 +1411,12 @@ function GameBoard() {
                         {/* Left side - Color/Number/BigSmall indicator */}
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${colorClass}`}
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center font-medium text-white text-lg ${colorClass}`}
                           >
                             {displayValue}
                           </div>
                           <div className="text-white">
-                            <div className="font-bold text-lg">{period}</div>
+                            <div className="font-medium text-lg">{period}</div>
                             <div className="text-blue-200 text-sm">
                               {dateStr} {timeStr}
                             </div>
@@ -1345,7 +1428,7 @@ function GameBoard() {
                           <div className="text-center">
                             {status === "settled" ? (
                               <span
-                                className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                className={`px-3 py-1 rounded-full text-sm font-medium ${
                                   profit > 0
                                     ? "bg-green-500 text-white"
                                     : "bg-red-500 text-white"
@@ -1354,14 +1437,14 @@ function GameBoard() {
                                 {profit > 0 ? "Win" : "Fail"}
                               </span>
                             ) : (
-                              <span className="px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-white">
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-500 text-white">
                                 Pending
                               </span>
                             )}
                           </div>
                           {/* Amount */}
                           <div className="text-right">
-                            <div className={`font-bold text-lg ${amountColor}`}>
+                            <div className={`font-medium text-lg ${amountColor}`}>
                               {amountDisplay}
                             </div>
                           </div>
