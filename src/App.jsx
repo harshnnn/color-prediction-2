@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import GameBoard from './components/GameBoard';
 import LoginPage from './components/LoginPage';
+import DepositPage from './components/DepositPage';
+import WithdrawalPage from './components/WithdrawalPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -42,6 +44,16 @@ function AppContent() {
         <Route path="/" element={
           <ProtectedRoute>
             <GameBoard />
+          </ProtectedRoute>
+        } />
+        <Route path="/Deposit" element={
+          <ProtectedRoute>
+            <DepositPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/Withdrawl" element={
+          <ProtectedRoute>
+            <WithdrawalPage />
           </ProtectedRoute>
         } />
       </Routes>

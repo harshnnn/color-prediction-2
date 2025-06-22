@@ -1,0 +1,472 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Navbar from './Navbar';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+const depositRules = [
+  "Deposit money only in the below available accounts to get the fastest credits and avoid possible delays.",
+  "Deposits made 45 minutes after the account removal from the site are valid & will be added to their wallets.",
+  "Site is not responsible for money deposited to Old, Inactive or Closed accounts.",
+  "After deposit, add your UTR and amount to receive balance.",
+  "NEFT receiving time varies from 40 minutes to 2 hours.",
+  "In case of account modification: payment valid for 1 hour after changing account details in deposit page."
+];
+
+const dummyHistory = [
+  {
+    transactionNo: "516725153635",
+    amount: 300,
+    status: "APPROVED",
+    date: "16-06-2025 06:25:02 PM",
+    reason: "-"
+  },
+  {
+    transactionNo: "508256733813",
+    amount: 1000,
+    status: "APPROVED",
+    date: "23-03-2025 04:49:44 PM",
+    reason: "-"
+  }
+];
+
+// Add more bank accounts if needed
+const depositMethods = [
+  {
+    key: 'whatsapp',
+    label: 'WHATSAPP DEPOSIT',
+    icon: <i className="fa fa-whatsapp text-2xl text-green-500"></i>,
+    details: {
+      whatsapp: '+91-9876543210',
+      note: 'Contact support for WhatsApp deposit.'
+    }
+  },
+  {
+    key: 'bank1',
+    label: 'ACCOUNT',
+    icon: <i className="fa fa-university text-2xl text-blue-700"></i>,
+    details: {
+      bankName: 'Bank Of Maharashtra',
+      accountNo: '60530478827',
+      ifsc: 'MAHB0001822',
+      accountHolder: 'Godabai Ramdas Ulke',
+      minAmount: 300,
+      maxAmount: 100000,
+    }
+  },
+  {
+    key: 'bank2',
+    label: 'ACCOUNT',
+    icon: <i className="fa fa-university text-2xl text-blue-700"></i>,
+    details: {
+      bankName: 'State Bank of India',
+      accountNo: '12345678901',
+      ifsc: 'SBIN0001234',
+      accountHolder: 'Ramesh Kumar',
+      minAmount: 300,
+      maxAmount: 50000,
+    }
+  },
+  {
+    key: 'bank3',
+    label: 'ACCOUNT',
+    icon: <i className="fa fa-university text-2xl text-blue-700"></i>,
+    details: {
+      bankName: 'ICICI Bank',
+      accountNo: '98765432101',
+      ifsc: 'ICIC0001234',
+      accountHolder: 'Suresh Sharma',
+      minAmount: 300,
+      maxAmount: 80000,
+    }
+  },
+  {
+    key: 'paytm',
+    label: 'PAYTM',
+    icon: <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Paytm_logo.png" alt="Paytm" className="h-6" />,
+    details: {
+      paytmNo: '9876543210',
+      accountHolder: 'Paytm User',
+      minAmount: 300,
+      maxAmount: 20000,
+    }
+  },
+  {
+    key: 'usdt',
+    label: 'USDT',
+    icon: <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT" className="h-6" />,
+    details: {
+      usdtAddress: 'TXYZ1234567890',
+      minAmount: 300,
+      maxAmount: 100000,
+    }
+  }
+];
+
+export default function DepositPage() {
+  const [amount, setAmount] = useState('');
+  const [step, setStep] = useState('amount'); // 'amount' | 'method'
+  const [selectedMethod, setSelectedMethod] = useState(null); // No default, set after amount
+  const [utr, setUtr] = useState('');
+  const [paymentProof, setPaymentProof] = useState(null);
+
+  const navigate = useNavigate();
+
+  // Handle submit for amount
+  const handleAmountSubmit = (e) => {
+    e.preventDefault();
+    const amt = Number(amount);
+    if (isNaN(amt) || amt < 300) {
+      toast.error('Amount should be at least 300', { position: "top-center" });
+      return;
+    }
+    setStep('method');
+    setSelectedMethod(depositMethods[0]); // Select first method by default
+  };
+
+  // Handle method selection
+  const handleMethodSelect = (method) => {
+    setSelectedMethod(method);
+  };
+
+  // Handle file upload
+  const handleFileChange = (e) => {
+    setPaymentProof(e.target.files[0]);
+  };
+
+  // Handle deposit final submit (UTR, proof, etc)
+  const handleDepositFinalSubmit = (e) => {
+    e.preventDefault();
+    if (!utr || utr.length < 6 || utr.length > 12) {
+      toast.error('Enter a valid 6 to 12 digit UTR number', { position: "top-center" });
+      return;
+    }
+    if (!paymentProof) {
+      toast.error('Please upload your payment proof', { position: "top-center" });
+      return;
+    }
+    toast.success('Deposit request submitted!', { position: "top-center" });
+  };
+
+  // Back button logic
+  const handleBack = () => {
+    if (step === 'method') {
+      setStep('amount');
+      setUtr('');
+      setPaymentProof(null);
+      // Keep amount and selectedMethod for user convenience
+    } else {
+      navigate('/');
+    }
+  };
+
+  // Render method selection buttons (styled as in the image)
+  const renderMethodButtons = () => (
+    <div className="flex flex-wrap gap-2 mb-6">
+      {depositMethods.map((method) => (
+        <button
+          key={method.key}
+          className={`flex flex-col items-center justify-center px-6 py-2 rounded-xl border-2 font-bold transition-all min-w-[120px] text-xs
+            ${selectedMethod && selectedMethod.key === method.key
+              ? 'bg-white border-blue-900 text-blue-900 shadow'
+              : 'bg-[#f7f7fa] border-blue-200 text-blue-900 hover:bg-blue-50'}
+            `}
+          style={{
+            boxShadow: selectedMethod && selectedMethod.key === method.key ? '0 2px 8px #b3c6ff33' : undefined,
+            outline: selectedMethod && selectedMethod.key === method.key ? '2px solid #1a237e' : undefined
+          }}
+          onClick={() => handleMethodSelect(method)}
+          type="button"
+        >
+          <div className="mb-1">{method.icon}</div>
+          <span>{method.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#f3f2f6]">
+      <ToastContainer />
+      <Navbar />
+      {/* Back Button */}
+      <div className="flex w-full max-w-6xl mx-auto mt-2 px-4">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 px-4 py-2 bg-white rounded shadow text-blue-900 font-bold border border-blue-200 hover:bg-blue-50"
+        >
+          <span className="text-lg">&#8592;</span>
+          <span>BACK</span>
+        </button>
+      </div>
+      <div className="flex flex-1 w-full max-w-6xl mx-auto mt-4 gap-8 px-4 overflow-auto">
+        {/* Left: Deposit Methods, Form, Rules */}
+        <div className="flex-1 flex flex-col min-w-[340px] max-w-[700px]">
+          {/* Step 1: Amount input */}
+          {step === 'amount' && (
+            <form onSubmit={handleAmountSubmit} className="bg-white/90 rounded-xl shadow p-6 mb-6">
+              <div className="mb-4">
+                <label className="block text-gray-800 font-semibold mb-2 text-lg">Amount</label>
+                <div className="flex">
+                  <input
+                    type="number"
+                    className="flex-1 px-4 py-3 rounded-l border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg"
+                    placeholder="Enter amount"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    min={300}
+                  />
+                  <button
+                    type="submit"
+                    className="bg-[#1a237e] text-white font-bold px-6 rounded-r transition hover:bg-blue-900"
+                  >
+                    SUBMIT
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+          {/* Step 2: Method selection and form */}
+          {step === 'method' && (
+            <>
+              {renderMethodButtons()}
+              <div className="flex flex-row gap-6">
+                {/* Left: Details */}
+                <div className="flex-1">
+                  <div className="bg-white rounded-xl shadow p-4 mb-4">
+                    <div className="font-bold text-blue-900 text-lg mb-2 text-center">
+                      {selectedMethod.label === 'ACCOUNT' ? 'BANK ACCOUNT' : selectedMethod.label}
+                    </div>
+                    <div className="divide-y divide-blue-100">
+                      {selectedMethod.key.startsWith('bank') && (
+                        <>
+                          <div className="flex justify-between py-2">
+                            <span>Bank Name</span>
+                            <span className="font-semibold">{selectedMethod.details.bankName}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.bankName)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>A/C No</span>
+                            <span className="font-semibold">{selectedMethod.details.accountNo}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountNo)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>IFSC Code</span>
+                            <span className="font-semibold">{selectedMethod.details.ifsc}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.ifsc)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Account Name</span>
+                            <span className="font-semibold">{selectedMethod.details.accountHolder}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountHolder)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Min Amount</span>
+                            <span className="font-semibold">{selectedMethod.details.minAmount}</span>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Max Amount</span>
+                            <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedMethod.key === 'paytm' && (
+                        <>
+                          <div className="flex justify-between py-2">
+                            <span>Paytm No</span>
+                            <span className="font-semibold">{selectedMethod.details.paytmNo}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.paytmNo)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Account Name</span>
+                            <span className="font-semibold">{selectedMethod.details.accountHolder}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountHolder)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Min Amount</span>
+                            <span className="font-semibold">{selectedMethod.details.minAmount}</span>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Max Amount</span>
+                            <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedMethod.key === 'usdt' && (
+                        <>
+                          <div className="flex justify-between py-2">
+                            <span>USDT Address</span>
+                            <span className="font-semibold">{selectedMethod.details.usdtAddress}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.usdtAddress)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Min Amount</span>
+                            <span className="font-semibold">{selectedMethod.details.minAmount}</span>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Max Amount</span>
+                            <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedMethod.key === 'whatsapp' && (
+                        <>
+                          <div className="flex justify-between py-2">
+                            <span>WhatsApp</span>
+                            <span className="font-semibold">{selectedMethod.details.whatsapp}</span>
+                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.whatsapp)}>
+                              <i className="fa fa-copy text-blue-700"></i>
+                            </button>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span>Note</span>
+                            <span className="font-semibold">{selectedMethod.details.note}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {/* Extra info for bank */}
+                    {selectedMethod.key.startsWith('bank') && (
+                      <>
+                        <div className="text-center mt-4">
+                          <a
+                            href="https://www.upitobank.info"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block font-bold text-blue-900 underline"
+                          >
+                            HOW TO TRANSFER UPI TO BANK<br />CLICK HERE WWW.UPITOBANK.INFO
+                          </a>
+                        </div>
+                        <div className="mt-4">
+                          <a
+                            href="https://wa.me/919876543210"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block bg-blue-900 text-white font-bold py-3 rounded-xl text-center"
+                          >
+                            FOR PAYMENT RELATED ISSUES CLICK HERE <i className="fa fa-whatsapp ml-2"></i>
+                          </a>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {/* Right: Deposit Form */}
+                <div className="flex-1">
+                  <form onSubmit={handleDepositFinalSubmit} className="bg-white rounded-xl shadow p-6 flex flex-col gap-4">
+                    {selectedMethod.key !== 'whatsapp' && (
+                      <>
+                        <div>
+                          <label className="block font-semibold mb-1">Unique Transaction Reference <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            className="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            placeholder="6 to 12 Digit UTR Number"
+                            value={utr}
+                            onChange={e => setUtr(e.target.value)}
+                            maxLength={12}
+                            minLength={6}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-1">Upload Your Payment Proof <span className="text-red-500">[Required]</span></label>
+                          <input
+                            type="file"
+                            className="block"
+                            onChange={handleFileChange}
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <label className="block font-semibold mb-1">Amount</label>
+                      <input
+                        type="number"
+                        className="w-full px-4 py-2 rounded border border-gray-300 bg-gray-100"
+                        value={amount}
+                        readOnly
+                      />
+                    </div>
+                    {selectedMethod.key !== 'whatsapp' && (
+                      <div className="flex items-center">
+                        <input type="checkbox" required className="mr-2" id="agree" />
+                        <label htmlFor="agree" className="text-sm">
+                          I have read and agree with the <a href="#" className="text-blue-600 underline">terms of payment and withdrawal policy</a>.
+                        </label>
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition-all text-lg"
+                    >
+                      SUBMIT
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </>
+          )}
+          {/* Rules - always visible, allow scroll if needed */}
+          <div className="bg-white rounded-xl shadow p-6 flex-1 overflow-auto mt-4">
+            <ol className="list-decimal pl-6 space-y-2 text-sm text-red-600">
+              {depositRules.map((rule, idx) => (
+                <li key={idx}>{rule}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+        {/* Right: Deposit History (unchanged) */}
+        <div className="w-[420px] flex flex-col">
+          <div className="bg-white rounded-xl shadow p-4 flex-1 overflow-auto">
+            <div className="font-bold text-blue-900 mb-3">Deposit History</div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead>
+                  <tr className="bg-[#1a237e] text-white">
+                    <th className="px-2 py-2 font-semibold">TRANSACTION NO</th>
+                    <th className="px-2 py-2 font-semibold">AMOUNT</th>
+                    <th className="px-2 py-2 font-semibold">STATUS</th>
+                    <th className="px-2 py-2 font-semibold">DATE</th>
+                    <th className="px-2 py-2 font-semibold">REASON</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dummyHistory.map((row, idx) => (
+                    <tr key={idx} className="border-b last:border-b-0">
+                      <td className="px-2 py-2">{row.transactionNo}</td>
+                      <td className="px-2 py-2">{row.amount.toFixed(2)}</td>
+                      <td className="px-2 py-2">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${row.status === "APPROVED" ? "bg-green-100 text-green-700 border border-green-400" : "bg-yellow-100 text-yellow-700 border border-yellow-400"}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2">{row.date}</td>
+                      <td className="px-2 py-2">{row.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
