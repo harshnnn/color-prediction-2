@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Deposit from './Deposit';
+import Withdrawal from './Withdrawal';
 
 
 const GAME_TYPES = [
@@ -273,7 +275,7 @@ function GameBoard() {
         setTimeout(() => {
           setShowResult(false);
           setShowBetModal(false);
-        }, 3000);
+        }, 1250); // Show result for only 1 second
       }
     };
     ws.onerror = (err) => {
@@ -665,8 +667,10 @@ function GameBoard() {
             69<span className="text-white">EXCH</span>
           </span>
         </div>
-        {/* Account Button (right) with balance below */}
-        <div className="flex flex-col items-center">
+        {/* Deposit & Withdrawal & Account (right) */}
+        <div className="flex items-center gap-2">
+          <Deposit />
+          <Withdrawal />
           <button
             onClick={handleOpenUserPanel}
             className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -679,19 +683,6 @@ function GameBoard() {
               <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
             </svg>
           </button>
-          {/* Balance display */}
-          <div className="mt-1 text-xs text-white font-semibold bg-blue-900 bg-opacity-70 px-3 py-1 rounded-lg shadow border border-blue-700 min-w-[90px] text-right">
-            {userInfoLoading ? (
-              <span className="text-blue-200">Loading...</span>
-            ) : userInfoError ? (
-              <span className="text-red-300">--</span>
-            ) : (
-              <>
-                <span className="text-yellow-300">₹</span>
-                <span className="ml-1">{userInfo.balance !== null ? userInfo.balance : '--'}</span>
-              </>
-            )}
-          </div>
         </div>
       </nav>
 
@@ -711,6 +702,32 @@ function GameBoard() {
             </div>
             {/* Content */}
             <div className="p-6 space-y-6">
+              {/* User Info (Balance & Username) */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg border-2 border-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+                      <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
+                    </svg>
+                  </div>
+                  <div className="text-white text-lg font-bold">
+                    {userInfo.username ? userInfo.username : "User"}
+                  </div>
+                </div>
+                <div className="text-sm text-white font-semibold bg-blue-900 bg-opacity-70 px-4 py-2 rounded-lg shadow border border-blue-700 min-w-[120px] text-center">
+                  {userInfoLoading ? (
+                    <span className="text-blue-200">Loading...</span>
+                  ) : userInfoError ? (
+                    <span className="text-red-300">--</span>
+                  ) : (
+                    <>
+                      <span className="text-yellow-300">₹</span>
+                      <span className="ml-1">{userInfo.balance !== null ? userInfo.balance : '--'}</span>
+                    </>
+                  )}
+                </div>
+              </div>
               {/* Actions */}
               <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <button
