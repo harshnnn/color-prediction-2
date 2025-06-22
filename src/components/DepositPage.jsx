@@ -35,7 +35,13 @@ const depositMethods = [
   {
     key: 'whatsapp',
     label: 'WHATSAPP DEPOSIT',
-    icon: <i className="fa fa-whatsapp text-2xl text-green-500"></i>,
+    icon: (
+      <img
+        src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+        alt="WhatsApp"
+        className="h-6 w-6"
+      />
+    ),
     details: {
       whatsapp: '+91-9876543210',
       note: 'Contact support for WhatsApp deposit.'
@@ -44,7 +50,15 @@ const depositMethods = [
   {
     key: 'bank1',
     label: 'ACCOUNT',
-    icon: <i className="fa fa-university text-2xl text-blue-700"></i>,
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#b87333"/>
+        <rect x="4" y="13" width="16" height="7" fill="#13204a"/>
+        <rect x="7" y="16" width="2" height="4" fill="#fff"/>
+        <rect x="11" y="16" width="2" height="4" fill="#fff"/>
+        <rect x="15" y="16" width="2" height="4" fill="#fff"/>
+      </svg>
+    ),
     details: {
       bankName: 'Bank Of Maharashtra',
       accountNo: '60530478827',
@@ -57,7 +71,15 @@ const depositMethods = [
   {
     key: 'bank2',
     label: 'ACCOUNT',
-    icon: <i className="fa fa-university text-2xl text-blue-700"></i>,
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#1976d2"/>
+        <rect x="4" y="13" width="16" height="7" fill="#1976d2"/>
+        <rect x="7" y="16" width="2" height="4" fill="#fff"/>
+        <rect x="11" y="16" width="2" height="4" fill="#fff"/>
+        <rect x="15" y="16" width="2" height="4" fill="#fff"/>
+      </svg>
+    ),
     details: {
       bankName: 'State Bank of India',
       accountNo: '12345678901',
@@ -70,7 +92,15 @@ const depositMethods = [
   {
     key: 'bank3',
     label: 'ACCOUNT',
-    icon: <i className="fa fa-university text-2xl text-blue-700"></i>,
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#1976d2"/>
+        <rect x="4" y="13" width="16" height="7" fill="#1976d2"/>
+        <rect x="7" y="16" width="2" height="4" fill="#fff"/>
+        <rect x="11" y="16" width="2" height="4" fill="#fff"/>
+        <rect x="15" y="16" width="2" height="4" fill="#fff"/>
+      </svg>
+    ),
     details: {
       bankName: 'ICICI Bank',
       accountNo: '98765432101',
@@ -83,7 +113,13 @@ const depositMethods = [
   {
     key: 'paytm',
     label: 'PAYTM',
-    icon: <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Paytm_logo.png" alt="Paytm" className="h-6" />,
+    icon: (
+      <img
+        src="https://upload.wikimedia.org/wikipedia/commons/5/55/Paytm_logo.png"
+        alt="Paytm"
+        className="h-6 w-12 object-contain"
+      />
+    ),
     details: {
       paytmNo: '9876543210',
       accountHolder: 'Paytm User',
@@ -94,7 +130,13 @@ const depositMethods = [
   {
     key: 'usdt',
     label: 'USDT',
-    icon: <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT" className="h-6" />,
+    icon: (
+      <img
+        src="https://cryptologos.cc/logos/tether-usdt-logo.png"
+        alt="USDT"
+        className="h-6 w-6 object-contain"
+      />
+    ),
     details: {
       usdtAddress: 'TXYZ1234567890',
       minAmount: 300,
@@ -162,11 +204,11 @@ export default function DepositPage() {
 
   // Render method selection buttons (styled as in the image)
   const renderMethodButtons = () => (
-    <div className="flex flex-wrap gap-2 mb-6">
+    <div className="flex flex-row gap-1 mb-6 w-full ">
       {depositMethods.map((method) => (
         <button
           key={method.key}
-          className={`flex flex-col items-center justify-center px-6 py-2 rounded-xl border-2 font-bold transition-all min-w-[120px] text-xs
+          className={`flex flex-row items-center justify-center gap-1 px-1 py-1 rounded-xl border-2 font-bold transition-all min-w-[110px] text-xs
             ${selectedMethod && selectedMethod.key === method.key
               ? 'bg-white border-blue-900 text-blue-900 shadow'
               : 'bg-[#f7f7fa] border-blue-200 text-blue-900 hover:bg-blue-50'}
@@ -178,7 +220,7 @@ export default function DepositPage() {
           onClick={() => handleMethodSelect(method)}
           type="button"
         >
-          <div className="mb-1">{method.icon}</div>
+          {method.icon}
           <span>{method.label}</span>
         </button>
       ))}
@@ -230,7 +272,7 @@ export default function DepositPage() {
           {step === 'method' && (
             <>
               {renderMethodButtons()}
-              <div className="flex flex-row gap-6">
+              <div className="flex flex-row gap-3">
                 {/* Left: Details */}
                 <div className="flex-1">
                   <div className="bg-white rounded-xl shadow p-4 mb-4">
