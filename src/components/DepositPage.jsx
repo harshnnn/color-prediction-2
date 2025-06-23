@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import { ToastContainer, toast } from 'react-toastify';
@@ -13,146 +13,248 @@ const depositRules = [
   "In case of account modification: payment valid for 1 hour after changing account details in deposit page."
 ];
 
-const dummyHistory = [
-  {
-    transactionNo: "516725153635",
-    amount: 300,
-    status: "APPROVED",
-    date: "16-06-2025 06:25:02 PM",
-    reason: "-"
-  },
-  {
-    transactionNo: "508256733813",
-    amount: 1000,
-    status: "APPROVED",
-    date: "23-03-2025 04:49:44 PM",
-    reason: "-"
-  }
-];
-
-// Add more bank accounts if needed
-const depositMethods = [
-  {
-    key: 'whatsapp',
-    label: 'WHATSAPP DEPOSIT',
-    icon: (
-      <img
-        src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-        alt="WhatsApp"
-        className="h-6 w-6"
-      />
-    ),
-    details: {
-      whatsapp: '+91-9876543210',
-      note: 'Contact support for WhatsApp deposit.'
-    }
-  },
-  {
-    key: 'bank1',
-    label: 'ACCOUNT',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
-        <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#b87333"/>
-        <rect x="4" y="13" width="16" height="7" fill="#13204a"/>
-        <rect x="7" y="16" width="2" height="4" fill="#fff"/>
-        <rect x="11" y="16" width="2" height="4" fill="#fff"/>
-        <rect x="15" y="16" width="2" height="4" fill="#fff"/>
-      </svg>
-    ),
-    details: {
-      bankName: 'Bank Of Maharashtra',
-      accountNo: '60530478827',
-      ifsc: 'MAHB0001822',
-      accountHolder: 'Godabai Ramdas Ulke',
-      minAmount: 300,
-      maxAmount: 100000,
-    }
-  },
-  {
-    key: 'bank2',
-    label: 'ACCOUNT',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
-        <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#1976d2"/>
-        <rect x="4" y="13" width="16" height="7" fill="#1976d2"/>
-        <rect x="7" y="16" width="2" height="4" fill="#fff"/>
-        <rect x="11" y="16" width="2" height="4" fill="#fff"/>
-        <rect x="15" y="16" width="2" height="4" fill="#fff"/>
-      </svg>
-    ),
-    details: {
-      bankName: 'State Bank of India',
-      accountNo: '12345678901',
-      ifsc: 'SBIN0001234',
-      accountHolder: 'Ramesh Kumar',
-      minAmount: 300,
-      maxAmount: 50000,
-    }
-  },
-  {
-    key: 'bank3',
-    label: 'ACCOUNT',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
-        <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#1976d2"/>
-        <rect x="4" y="13" width="16" height="7" fill="#1976d2"/>
-        <rect x="7" y="16" width="2" height="4" fill="#fff"/>
-        <rect x="11" y="16" width="2" height="4" fill="#fff"/>
-        <rect x="15" y="16" width="2" height="4" fill="#fff"/>
-      </svg>
-    ),
-    details: {
-      bankName: 'ICICI Bank',
-      accountNo: '98765432101',
-      ifsc: 'ICIC0001234',
-      accountHolder: 'Suresh Sharma',
-      minAmount: 300,
-      maxAmount: 80000,
-    }
-  },
-  {
-    key: 'paytm',
-    label: 'PAYTM',
-    icon: (
-      <img
-        src="https://upload.wikimedia.org/wikipedia/commons/5/55/Paytm_logo.png"
-        alt="Paytm"
-        className="h-6 w-12 object-contain"
-      />
-    ),
-    details: {
-      paytmNo: '9876543210',
-      accountHolder: 'Paytm User',
-      minAmount: 300,
-      maxAmount: 20000,
-    }
-  },
-  {
-    key: 'usdt',
-    label: 'USDT',
-    icon: (
-      <img
-        src="https://cryptologos.cc/logos/tether-usdt-logo.png"
-        alt="USDT"
-        className="h-6 w-6 object-contain"
-      />
-    ),
-    details: {
-      usdtAddress: 'TXYZ1234567890',
-      minAmount: 300,
-      maxAmount: 100000,
-    }
-  }
-];
-
 export default function DepositPage() {
   const [amount, setAmount] = useState('');
-  const [step, setStep] = useState('amount'); // 'amount' | 'method'
-  const [selectedMethod, setSelectedMethod] = useState(null); // No default, set after amount
+  const [step, setStep] = useState('amount');
+  const [selectedMethod, setSelectedMethod] = useState(null);
   const [utr, setUtr] = useState('');
   const [paymentProof, setPaymentProof] = useState(null);
 
+  // Deposit methods from API
+  const [depositMethods, setDepositMethods] = useState([]);
+  const [depositMethodsLoading, setDepositMethodsLoading] = useState(false);
+  const [depositMethodsError, setDepositMethodsError] = useState(null);
+
+  // New state for deposit history from API
+  const [depositHistory, setDepositHistory] = useState([]);
+  const [depositHistoryLoading, setDepositHistoryLoading] = useState(false);
+  const [depositHistoryError, setDepositHistoryError] = useState(null);
+
   const navigate = useNavigate();
+
+  // Helper to check if JWT is expired
+  function isTokenExpired(token) {
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
+  // Helper to refresh access token using refresh token
+  const tryRefreshToken = useCallback(async () => {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) return null;
+    try {
+      const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        return null;
+      }
+      const data = await res.json();
+      if (data.access_token) {
+        localStorage.setItem('access_token', data.access_token);
+        return data.access_token;
+      }
+      return null;
+    } catch {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      return null;
+    }
+  }, []);
+
+  // Helper to get a valid access token, refresh if needed
+  const getValidAccessToken = useCallback(async () => {
+    let accessToken = localStorage.getItem('access_token');
+    if (accessToken && !isTokenExpired(accessToken)) {
+      return accessToken;
+    }
+    const refreshed = await tryRefreshToken();
+    if (refreshed) return refreshed;
+    return null;
+  }, [tryRefreshToken]);
+
+  // Fetch deposit methods from API on mount
+  useEffect(() => {
+    const fetchDepositMethods = async () => {
+      setDepositMethodsLoading(true);
+      setDepositMethodsError(null);
+      try {
+        const token = await getValidAccessToken();
+        if (!token) {
+          setDepositMethodsError('Not authenticated');
+          setDepositMethodsLoading(false);
+          return;
+        }
+        const res = await fetch('https://color-prediction-742i.onrender.com/admin/deposit-method', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) {
+          setDepositMethodsError('Failed to fetch deposit methods');
+          setDepositMethodsLoading(false);
+          return;
+        }
+        const data = await res.json();
+        // Map API methods to UI format (support both old and new API shapes)
+        const mapped = (Array.isArray(data) ? data : []).map((method) => {
+          // If new format (bank_name, bank_account_number, etc)
+          if (method.bank_name && method.bank_account_number) {
+            return {
+              key: method.id?.toString() || Math.random().toString(),
+              label: 'ACCOUNT',
+              icon: (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#1976d2"/>
+                  <rect x="4" y="13" width="16" height="7" fill="#1976d2"/>
+                  <rect x="7" y="16" width="2" height="4" fill="#fff"/>
+                  <rect x="11" y="16" width="2" height="4" fill="#fff"/>
+                  <rect x="15" y="16" width="2" height="4" fill="#fff"/>
+                </svg>
+              ),
+              details: {
+                bankName: method.bank_name,
+                accountNo: method.bank_account_number,
+                ifsc: method.ifsc_code,
+                accountHolder: method.account_holder_name,
+                minAmount: method.min,
+                maxAmount: method.max,
+              },
+              type: 'bank',
+            };
+          }
+          // Default: bank
+          let icon = (
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path d="M12 3L2 9l10 6 10-6-10-6z" fill="#1976d2"/>
+              <rect x="4" y="13" width="16" height="7" fill="#1976d2"/>
+              <rect x="7" y="16" width="2" height="4" fill="#fff"/>
+              <rect x="11" y="16" width="2" height="4" fill="#fff"/>
+              <rect x="15" y="16" width="2" height="4" fill="#fff"/>
+            </svg>
+          );
+          let label = method.type?.toUpperCase() || 'ACCOUNT';
+          if (method.type === 'whatsapp') {
+            icon = (
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                alt="WhatsApp"
+                className="h-6 w-6"
+              />
+            );
+            label = 'WHATSAPP DEPOSIT';
+          } else if (method.type === 'paytm') {
+            icon = (
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/5/55/Paytm_logo.png"
+                alt="Paytm"
+                className="h-6 w-12 object-contain"
+              />
+            );
+            label = 'PAYTM';
+          } else if (method.type === 'usdt') {
+            icon = (
+              <img
+                src="https://cryptologos.cc/logos/tether-usdt-logo.png"
+                alt="USDT"
+                className="h-6 w-6 object-contain"
+              />
+            );
+            label = 'USDT';
+          }
+          // Map details
+          let details = {};
+          if (method.type === 'paytm') {
+            details = {
+              paytmNo: method.paytm_no,
+              accountHolder: method.account_holder,
+              minAmount: method.min_amount,
+              maxAmount: method.max_amount,
+            };
+          } else if (method.type === 'usdt') {
+            details = {
+              usdtAddress: method.usdt_address,
+              minAmount: method.min_amount,
+              maxAmount: method.max_amount,
+            };
+          } else if (method.type === 'whatsapp') {
+            details = {
+              whatsapp: method.whatsapp_no,
+              note: method.note,
+            };
+          } else {
+            details = {
+              bankName: method.bank_name,
+              accountNo: method.account_no,
+              ifsc: method.ifsc_code,
+              accountHolder: method.account_holder,
+              minAmount: method.min_amount,
+              maxAmount: method.max_amount,
+            };
+          }
+          return {
+            key: method.id?.toString() || method.type || Math.random().toString(),
+            label,
+            icon,
+            details,
+            type: method.type,
+          };
+        });
+        setDepositMethods(mapped);
+      } catch (err) {
+        setDepositMethodsError('Failed to fetch deposit methods');
+      } finally {
+        setDepositMethodsLoading(false);
+      }
+    };
+    fetchDepositMethods();
+  }, [getValidAccessToken]);
+
+  // Fetch deposit history from API
+  const fetchDepositHistory = useCallback(async () => {
+    setDepositHistoryLoading(true);
+    setDepositHistoryError(null);
+    try {
+      const token = await getValidAccessToken();
+      if (!token) {
+        setDepositHistoryError('Not authenticated');
+        setDepositHistoryLoading(false);
+        return;
+      }
+      const res = await fetch('https://color-prediction-742i.onrender.com/deposits', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        setDepositHistoryError('Failed to fetch deposit history');
+        setDepositHistoryLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setDepositHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setDepositHistoryError('Failed to fetch deposit history');
+    } finally {
+      setDepositHistoryLoading(false);
+    }
+  }, [getValidAccessToken]);
+
+  // Fetch deposit history on mount and when fetchDepositHistory changes
+  useEffect(() => {
+    fetchDepositHistory();
+  }, [fetchDepositHistory]);
 
   // Handle submit for amount
   const handleAmountSubmit = (e) => {
@@ -177,17 +279,60 @@ export default function DepositPage() {
   };
 
   // Handle deposit final submit (UTR, proof, etc)
-  const handleDepositFinalSubmit = (e) => {
+  const handleDepositFinalSubmit = async (e) => {
     e.preventDefault();
     if (!utr || utr.length < 6 || utr.length > 12) {
       toast.error('Enter a valid 6 to 12 digit UTR number', { position: "top-center" });
       return;
     }
-    if (!paymentProof) {
-      toast.error('Please upload your payment proof', { position: "top-center" });
+    if (!amount || Number(amount) < 300) {
+      toast.error('Amount should be at least 300', { position: "top-center" });
       return;
     }
-    toast.success('Deposit request submitted!', { position: "top-center" });
+    if (!selectedMethod || !selectedMethod.key) {
+      toast.error('Please select a deposit method', { position: "top-center" });
+      return;
+    }
+    // Only allow bank type for deposit POST
+    if (selectedMethod.type !== 'bank') {
+      toast.error('Only bank deposit is supported for now', { position: "top-center" });
+      return;
+    }
+    try {
+      const token = await getValidAccessToken();
+      if (!token) {
+        toast.error('Not authenticated', { position: "top-center" });
+        return;
+      }
+      const res = await fetch(
+        `https://color-prediction-742i.onrender.com/deposits?account_id=${selectedMethod.key}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            utr,
+            amount: Number(amount),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message || data.detail || 'Deposit failed', { position: "top-center" });
+        return;
+      }
+      toast.success('Deposit request submitted!', { position: "top-center" });
+      setUtr('');
+      setPaymentProof(null);
+      setStep('amount');
+      setAmount('');
+      // Immediately fetch updated deposit history
+      fetchDepositHistory();
+    } catch (err) {
+      toast.error('Deposit failed. Please try again.', { position: "top-center" });
+    }
   };
 
   // Back button logic
@@ -204,11 +349,11 @@ export default function DepositPage() {
 
   // Render method selection buttons (styled as in the image)
   const renderMethodButtons = () => (
-    <div className="flex flex-row gap-1 mb-6 w-full ">
+    <div className="flex flex-wrap gap-2 mb-6 w-full justify-center">
       {depositMethods.map((method) => (
         <button
           key={method.key}
-          className={`flex flex-row items-center justify-center gap-1 px-1 py-1 rounded-xl border-2 font-bold transition-all min-w-[110px] text-xs
+          className={`flex flex-row items-center justify-center gap-1 px-2 py-2 rounded-xl border-2 font-bold transition-all min-w-[110px] text-xs
             ${selectedMethod && selectedMethod.key === method.key
               ? 'bg-white border-blue-900 text-blue-900 shadow'
               : 'bg-[#f7f7fa] border-blue-200 text-blue-900 hover:bg-blue-50'}
@@ -232,7 +377,7 @@ export default function DepositPage() {
       <ToastContainer />
       <Navbar />
       {/* Back Button */}
-      <div className="flex w-full max-w-6xl mx-auto mt-2 px-4">
+      <div className="flex w-full mx-auto mt-2 px-2 sm:px-4 md:px-8 lg:px-16">
         <button
           onClick={handleBack}
           className="flex items-center gap-2 px-4 py-2 bg-white rounded shadow text-blue-900 font-bold border border-blue-200 hover:bg-blue-50"
@@ -241,12 +386,12 @@ export default function DepositPage() {
           <span>BACK</span>
         </button>
       </div>
-      <div className="flex flex-1 w-full max-w-6xl mx-auto mt-4 gap-8 px-4 overflow-auto">
+      <div className="flex flex-1 w-full mx-auto mt-4 gap-4 md:gap-8 px-2 sm:px-4 md:px-8 lg:px-16 overflow-auto flex-col lg:flex-row">
         {/* Left: Deposit Methods, Form, Rules */}
-        <div className="flex-1 flex flex-col min-w-[340px] max-w-[700px]">
+        <div className="flex-1 flex flex-col w-full lg:w-2/3 min-w-0">
           {/* Step 1: Amount input */}
           {step === 'amount' && (
-            <form onSubmit={handleAmountSubmit} className="bg-white/90 rounded-xl shadow p-6 mb-6">
+            <form onSubmit={handleAmountSubmit} className="bg-white/90 rounded-xl shadow p-4 sm:p-6 mb-6 w-full max-w-xl mx-auto">
               <div className="mb-4">
                 <label className="block text-gray-800 font-semibold mb-2 text-lg">Amount</label>
                 <div className="flex">
@@ -271,202 +416,212 @@ export default function DepositPage() {
           {/* Step 2: Method selection and form */}
           {step === 'method' && (
             <>
-              {renderMethodButtons()}
-              <div className="flex flex-row gap-3">
-                {/* Left: Details */}
-                <div className="flex-1">
-                  <div className="bg-white rounded-xl shadow p-4 mb-4">
-                    <div className="font-bold text-blue-900 text-lg mb-2 text-center">
-                      {selectedMethod.label === 'ACCOUNT' ? 'BANK ACCOUNT' : selectedMethod.label}
-                    </div>
-                    <div className="divide-y divide-blue-100">
-                      {selectedMethod.key.startsWith('bank') && (
-                        <>
-                          <div className="flex justify-between py-2">
-                            <span>Bank Name</span>
-                            <span className="font-semibold">{selectedMethod.details.bankName}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.bankName)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>A/C No</span>
-                            <span className="font-semibold">{selectedMethod.details.accountNo}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountNo)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>IFSC Code</span>
-                            <span className="font-semibold">{selectedMethod.details.ifsc}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.ifsc)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Account Name</span>
-                            <span className="font-semibold">{selectedMethod.details.accountHolder}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountHolder)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Min Amount</span>
-                            <span className="font-semibold">{selectedMethod.details.minAmount}</span>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Max Amount</span>
-                            <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
-                          </div>
-                        </>
-                      )}
-                      {selectedMethod.key === 'paytm' && (
-                        <>
-                          <div className="flex justify-between py-2">
-                            <span>Paytm No</span>
-                            <span className="font-semibold">{selectedMethod.details.paytmNo}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.paytmNo)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Account Name</span>
-                            <span className="font-semibold">{selectedMethod.details.accountHolder}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountHolder)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Min Amount</span>
-                            <span className="font-semibold">{selectedMethod.details.minAmount}</span>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Max Amount</span>
-                            <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
-                          </div>
-                        </>
-                      )}
-                      {selectedMethod.key === 'usdt' && (
-                        <>
-                          <div className="flex justify-between py-2">
-                            <span>USDT Address</span>
-                            <span className="font-semibold">{selectedMethod.details.usdtAddress}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.usdtAddress)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Min Amount</span>
-                            <span className="font-semibold">{selectedMethod.details.minAmount}</span>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Max Amount</span>
-                            <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
-                          </div>
-                        </>
-                      )}
-                      {selectedMethod.key === 'whatsapp' && (
-                        <>
-                          <div className="flex justify-between py-2">
-                            <span>WhatsApp</span>
-                            <span className="font-semibold">{selectedMethod.details.whatsapp}</span>
-                            <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.whatsapp)}>
-                              <i className="fa fa-copy text-blue-700"></i>
-                            </button>
-                          </div>
-                          <div className="flex justify-between py-2">
-                            <span>Note</span>
-                            <span className="font-semibold">{selectedMethod.details.note}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {/* Extra info for bank */}
-                    {selectedMethod.key.startsWith('bank') && (
-                      <>
-                        <div className="text-center mt-4">
-                          <a
-                            href="https://www.upitobank.info"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block font-bold text-blue-900 underline"
-                          >
-                            HOW TO TRANSFER UPI TO BANK<br />CLICK HERE WWW.UPITOBANK.INFO
-                          </a>
+              {depositMethodsLoading ? (
+                <div className="text-center text-blue-700 py-8">Loading deposit methods...</div>
+              ) : depositMethodsError ? (
+                <div className="text-center text-red-500 py-8">{depositMethodsError}</div>
+              ) : (
+                <>
+                  {renderMethodButtons()}
+                  {/* Responsive: stack on mobile, row on desktop */}
+                  <div className="flex flex-col lg:flex-row gap-4 md:gap-6 justify-center w-full">
+                    {/* Left: Details */}
+                    <div className="flex-1 max-w-full lg:max-w-[340px]">
+                      <div className="bg-white rounded-xl shadow p-4 mb-4">
+                        <div className="font-bold text-blue-900 text-lg mb-2 text-center">
+                          {selectedMethod.label === 'ACCOUNT' ? 'BANK ACCOUNT' : selectedMethod.label}
                         </div>
-                        <div className="mt-4">
-                          <a
-                            href="https://wa.me/919876543210"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block bg-blue-900 text-white font-bold py-3 rounded-xl text-center"
-                          >
-                            FOR PAYMENT RELATED ISSUES CLICK HERE <i className="fa fa-whatsapp ml-2"></i>
-                          </a>
+                        <div className="divide-y divide-blue-100">
+                          {/* Render for new API shape */}
+                          {selectedMethod.type === 'bank' && (
+                            <>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>Bank Name</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.bankName}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.bankName)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>A/C No</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.accountNo}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountNo)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>IFSC Code</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.ifsc}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.ifsc)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>Account Name</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.accountHolder}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountHolder)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2">
+                                <span>Min Amount</span>
+                                <span className="font-semibold">{selectedMethod.details.minAmount}</span>
+                              </div>
+                              <div className="flex justify-between py-2">
+                                <span>Max Amount</span>
+                                <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
+                              </div>
+                            </>
+                          )}
+                          {selectedMethod.type === 'paytm' && (
+                            <>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>Paytm No</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.paytmNo}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.paytmNo)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>Account Name</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.accountHolder}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.accountHolder)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2">
+                                <span>Min Amount</span>
+                                <span className="font-semibold">{selectedMethod.details.minAmount}</span>
+                              </div>
+                              <div className="flex justify-between py-2">
+                                <span>Max Amount</span>
+                                <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
+                              </div>
+                            </>
+                          )}
+                          {selectedMethod.type === 'usdt' && (
+                            <>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>USDT Address</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.usdtAddress}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.usdtAddress)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2">
+                                <span>Min Amount</span>
+                                <span className="font-semibold">{selectedMethod.details.minAmount}</span>
+                              </div>
+                              <div className="flex justify-between py-2">
+                                <span>Max Amount</span>
+                                <span className="font-semibold">{selectedMethod.details.maxAmount}</span>
+                              </div>
+                            </>
+                          )}
+                          {selectedMethod.type === 'whatsapp' && (
+                            <>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>WhatsApp</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.whatsapp}</span>
+                                <button className="ml-2" onClick={() => navigator.clipboard.writeText(selectedMethod.details.whatsapp)}>
+                                  <i className="fa fa-copy text-blue-700"></i>
+                                </button>
+                              </div>
+                              <div className="flex justify-between py-2 flex-wrap">
+                                <span>Note</span>
+                                <span className="font-semibold break-all">{selectedMethod.details.note}</span>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {/* Right: Deposit Form */}
-                <div className="flex-1">
-                  <form onSubmit={handleDepositFinalSubmit} className="bg-white rounded-xl shadow p-6 flex flex-col gap-4">
-                    {selectedMethod.key !== 'whatsapp' && (
-                      <>
-                        <div>
-                          <label className="block font-semibold mb-1">Unique Transaction Reference <span className="text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            className="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            placeholder="6 to 12 Digit UTR Number"
-                            value={utr}
-                            onChange={e => setUtr(e.target.value)}
-                            maxLength={12}
-                            minLength={6}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold mb-1">Upload Your Payment Proof <span className="text-red-500">[Required]</span></label>
-                          <input
-                            type="file"
-                            className="block"
-                            onChange={handleFileChange}
-                            required
-                          />
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <label className="block font-semibold mb-1">Amount</label>
-                      <input
-                        type="number"
-                        className="w-full px-4 py-2 rounded border border-gray-300 bg-gray-100"
-                        value={amount}
-                        readOnly
-                      />
-                    </div>
-                    {selectedMethod.key !== 'whatsapp' && (
-                      <div className="flex items-center">
-                        <input type="checkbox" required className="mr-2" id="agree" />
-                        <label htmlFor="agree" className="text-sm">
-                          I have read and agree with the <a href="#" className="text-blue-600 underline">terms of payment and withdrawal policy</a>.
-                        </label>
+                        {/* Extra info for bank */}
+                        {selectedMethod.type === 'bank' && (
+                          <>
+                            <div className="text-center mt-4">
+                              <a
+                                href="https://www.upitobank.info"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block font-bold text-blue-900 underline"
+                              >
+                                HOW TO TRANSFER UPI TO BANK<br />CLICK HERE WWW.UPITOBANK.INFO
+                              </a>
+                            </div>
+                            <div className="mt-4">
+                              <a
+                                href="https://wa.me/919876543210"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block bg-blue-900 text-white font-bold py-3 rounded-xl text-center"
+                              >
+                                FOR PAYMENT RELATED ISSUES CLICK HERE <i className="fa fa-whatsapp ml-2"></i>
+                              </a>
+                            </div>
+                          </>
+                        )}
                       </div>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition-all text-lg"
-                    >
-                      SUBMIT
-                    </button>
-                  </form>
-                </div>
-              </div>
+                    </div>
+                    {/* Right: Deposit Form */}
+                    <div className="flex-1 max-w-full lg:max-w-[340px]">
+                      <form
+                        onSubmit={handleDepositFinalSubmit}
+                        className="bg-white rounded-xl shadow p-4 sm:p-6 flex flex-col gap-4"
+                        style={{ minWidth: 0 }}
+                      >
+                        {selectedMethod.type !== 'whatsapp' && (
+                          <>
+                            <div>
+                              <label className="block font-semibold mb-1">
+                                Unique Transaction Reference <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                className="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                placeholder="6 to 12 Digit UTR Number"
+                                value={utr}
+                                onChange={e => setUtr(e.target.value)}
+                                maxLength={12}
+                                minLength={6}
+                                required
+                              />
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <label className="block font-semibold mb-1">Amount</label>
+                          <input
+                            type="number"
+                            className="w-full px-4 py-2 rounded border border-gray-300 bg-gray-100"
+                            value={amount}
+                            readOnly
+                          />
+                        </div>
+                        {selectedMethod.type !== 'whatsapp' && (
+                          <div className="flex items-center">
+                            <input type="checkbox" required className="mr-2" id="agree" />
+                            <label htmlFor="agree" className="text-sm">
+                              I have read and agree with the <a href="#" className="text-blue-600 underline">terms of payment and withdrawal policy</a>.
+                            </label>
+                          </div>
+                        )}
+                        <div className="w-full flex">
+                          <button
+                            type="submit"
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition-all text-lg"
+                            style={{ minWidth: 0 }}
+                          >
+                            SUBMIT
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
           {/* Rules - always visible, allow scroll if needed */}
-          <div className="bg-white rounded-xl shadow p-6 flex-1 overflow-auto mt-4">
+          <div className="bg-white rounded-xl shadow p-4 sm:p-6 flex-1 overflow-auto mt-4 max-h-[220px] md:max-h-[300px]">
             <ol className="list-decimal pl-6 space-y-2 text-sm text-red-600">
               {depositRules.map((rule, idx) => (
                 <li key={idx}>{rule}</li>
@@ -474,37 +629,55 @@ export default function DepositPage() {
             </ol>
           </div>
         </div>
-        {/* Right: Deposit History (unchanged) */}
-        <div className="w-[420px] flex flex-col">
+        {/* Right: Deposit History  */}
+        <div className="w-full lg:w-1/3 flex flex-col mt-8 lg:mt-0">
           <div className="bg-white rounded-xl shadow p-4 flex-1 overflow-auto">
             <div className="font-bold text-blue-900 mb-3">Deposit History</div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead>
-                  <tr className="bg-[#1a237e] text-white">
-                    <th className="px-2 py-2 font-semibold">TRANSACTION NO</th>
-                    <th className="px-2 py-2 font-semibold">AMOUNT</th>
-                    <th className="px-2 py-2 font-semibold">STATUS</th>
-                    <th className="px-2 py-2 font-semibold">DATE</th>
-                    <th className="px-2 py-2 font-semibold">REASON</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dummyHistory.map((row, idx) => (
-                    <tr key={idx} className="border-b last:border-b-0">
-                      <td className="px-2 py-2">{row.transactionNo}</td>
-                      <td className="px-2 py-2">{row.amount.toFixed(2)}</td>
-                      <td className="px-2 py-2">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${row.status === "APPROVED" ? "bg-green-100 text-green-700 border border-green-400" : "bg-yellow-100 text-yellow-700 border border-yellow-400"}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2">{row.date}</td>
-                      <td className="px-2 py-2">{row.reason}</td>
+              {depositHistoryLoading ? (
+                <div className="text-center text-blue-700 py-8">Loading...</div>
+              ) : depositHistoryError ? (
+                <div className="text-center text-red-500 py-8">{depositHistoryError}</div>
+              ) : (
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr className="bg-[#1a237e] text-white">
+                      <th className="px-2 py-2 font-semibold">TRANSACTION ID</th>
+                      <th className="px-2 py-2 font-semibold">AMOUNT</th>
+                      <th className="px-2 py-2 font-semibold">STATUS</th>
+                      <th className="px-2 py-2 font-semibold">DATE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {depositHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-4 text-gray-400">No deposit history found.</td>
+                      </tr>
+                    ) : (
+                      depositHistory.map((row, idx) => (
+                        <tr key={idx} className="border-b last:border-b-0">
+                          <td className="px-2 py-2">{row.transaction_id || '-'}</td>
+                          <td className="px-2 py-2">{(row.amount ?? 0).toFixed(2)}</td>
+                          <td className="px-2 py-2">
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              row.status === "verified"
+                                ? "bg-green-100 text-green-700 border border-green-400"
+                                : "bg-yellow-100 text-yellow-700 border border-yellow-400"
+                            }`}>
+                              {row.status ? row.status.toUpperCase() : '-'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2">
+                            {row.created_at
+                              ? new Date(row.created_at).toLocaleString()
+                              : row.date || '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

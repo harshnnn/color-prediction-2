@@ -201,7 +201,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg mb-4" style={{ minHeight: 54 }}>
+      <nav className="w-full flex flex-wrap items-center justify-between px-2 sm:px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg mb-4 min-h-[54px]">
         {/* Logo (left) */}
         <div className="flex items-center gap-2">
           <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>
@@ -209,7 +209,7 @@ const Navbar = () => {
           </span>
         </div>
         {/* Deposit & Withdrawal & Account (right) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Deposit onClick={() => navigate('/Deposit')} />
           <Withdrawal onClick={() => navigate('/Withdrawl')} />
           <button
@@ -228,10 +228,10 @@ const Navbar = () => {
       </nav>
       {/* User Management Panel */}
       {showUserPanel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
-          <div className="bg-gradient-to-b from-blue-600 to-blue-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto relative border border-blue-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-bl-sm">
+          <div className="bg-gradient-to-b from-blue-600 to-blue-800 rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto relative border border-blue-300">
             {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-blue-400">
+            <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-blue-400">
               <h2 className="text-white text-xl font-bold">User Management</h2>
               <button
                 onClick={() => setShowUserPanel(false)}
@@ -241,7 +241,7 @@ const Navbar = () => {
               </button>
             </div>
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6">
               {/* User Info (Balance & Username) */}
               <div className="flex flex-col items-center mb-6">
                 <div className="flex items-center gap-3 mb-2">
@@ -251,7 +251,7 @@ const Navbar = () => {
                       <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
                     </svg>
                   </div>
-                  <div className="text-white text-lg font-bold">
+                  <div className="text-white text-lg font-bold break-all">
                     {userInfo.username ? userInfo.username : "User"}
                   </div>
                 </div>
@@ -269,7 +269,7 @@ const Navbar = () => {
                 </div>
               </div>
               {/* Actions */}
-              <div className="flex flex-col md:flex-row gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <button
                   onClick={() => setShowChangePassword((v) => !v)}
                   className="flex-1 bg-gradient-to-br from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white py-3 rounded-lg font-bold shadow-md transition-all"
