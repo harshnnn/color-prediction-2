@@ -100,10 +100,10 @@ const Navbar = () => {
         return;
       }
       const data = await res.json();
-      const userObj = Array.isArray(data) && data.length > 0 ? data[0] : {};
+      // API now returns a single user object, not an array
       setUserInfo({
-        username: userObj.username || '',
-        balance: userObj.wallet && typeof userObj.wallet.balance === 'number' ? userObj.wallet.balance : null,
+        username: data.username || '',
+        balance: data.wallet && typeof data.wallet.balance === 'number' ? data.wallet.balance : null,
       });
     } catch (err) {
       setUserInfoError('Failed to fetch user info');

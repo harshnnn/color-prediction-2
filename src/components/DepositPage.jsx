@@ -293,7 +293,10 @@ export default function DepositPage() {
       toast.error('Please select a deposit method', { position: "top-center" });
       return;
     }
-    // Only allow bank type for deposit POST
+    if (!paymentProof) {
+      toast.error('Please upload payment proof image', { position: "top-center" });
+      return;
+    }
     if (selectedMethod.type !== 'bank') {
       toast.error('Only bank deposit is supported for now', { position: "top-center" });
       return;
@@ -304,20 +307,19 @@ export default function DepositPage() {
         toast.error('Not authenticated', { position: "top-center" });
         return;
       }
-      const res = await fetch(
-        `https://color-prediction-742i.onrender.com/deposits?account_id=${selectedMethod.key}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            utr,
-            amount: Number(amount),
-          }),
-        }
-      );
+      const formData = new FormData();
+      formData.append('account_id', selectedMethod.key);
+      formData.append('amount', Number(amount));
+      formData.append('utr', utr);
+      formData.append('image', paymentProof);
+
+      const res = await fetch('https://color-prediction-742i.onrender.com/deposits', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.message || data.detail || 'Deposit failed', { position: "top-center" });
@@ -328,7 +330,6 @@ export default function DepositPage() {
       setPaymentProof(null);
       setStep('amount');
       setAmount('');
-      // Immediately fetch updated deposit history
       fetchDepositHistory();
     } catch (err) {
       toast.error('Deposit failed. Please try again.', { position: "top-center" });
@@ -585,16 +586,40 @@ export default function DepositPage() {
                                 required
                               />
                             </div>
+                            <div>
+                              <label className="block font-semibold mb-1">
+                                Upload Payment Proof <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="w-full"
+                                onChange={handleFileChange}
+                                required
+                              />
+                            </div>
                           </>
                         )}
                         <div>
                           <label className="block font-semibold mb-1">Amount</label>
-                          <input
-                            type="number"
-                            className="w-full px-4 py-2 rounded border border-gray-300 bg-gray-100"
-                            value={amount}
-                            readOnly
-                          />
+                          <div className="flex">
+                            <input
+                              type="number"
+                              className="w-full px-4 py-2 rounded-l border border-gray-300 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                              value={amount}
+                              min={300}
+                              onChange={e => setAmount(e.target.value)}
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 rounded-r transition"
+                              onClick={() => setStep('amount')}
+                              title="Change Amount"
+                            >
+                              Edit
+                            </button>
+                          </div>
                         </div>
                         {selectedMethod.type !== 'whatsapp' && (
                           <div className="flex items-center">

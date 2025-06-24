@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Add signup function
-  const signup = async (username, password) => {
+  const signup = async (username, password, phone) => {
     setError(null);
     setLoading(true);
     try {
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, phone }),
       });
 
       const signupData = await signupResponse.json();

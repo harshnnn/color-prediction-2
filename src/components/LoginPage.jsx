@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -30,9 +31,9 @@ function LoginPage() {
     setIsLoading(true);
     setErrorMessage('');
 
-    if (!username.trim() || !password.trim()) {
-      setErrorMessage('Please enter both username and password');
-      toast.error('Please enter both username and password', { position: "top-center" });
+    if (!username.trim() || !password.trim() || (!isLoginMode && !phone.trim())) {
+      setErrorMessage(isLoginMode ? 'Please enter both username and password' : 'Please enter username, phone and password');
+      toast.error(isLoginMode ? 'Please enter both username and password' : 'Please enter username, phone and password', { position: "top-center" });
       setIsLoading(false);
       return;
     }
@@ -60,7 +61,8 @@ function LoginPage() {
           setIsLoading(false);
           return;
         }
-        success = await signup(username, password);
+        // Pass phone to signup
+        success = await signup(username, password, phone);
         if (success) {
           toast.success('Account created successfully!', { position: "top-center" });
         }
@@ -137,6 +139,24 @@ function LoginPage() {
                   placeholder="Enter your username"
                 />
               </div>
+
+              {/* Phone field for signup */}
+              {!isLoginMode && (
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-blue-300 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="bg-gray-800 text-white w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-700"
+                    placeholder="Enter your phone number"
+                  />
+                </div>
+              )}
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-blue-300 mb-2">
