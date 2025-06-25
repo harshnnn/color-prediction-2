@@ -3,7 +3,7 @@ import Navbar from './Navbar';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
-import { MdDeleteOutline } from "react-icons/md";
+import { MdDeleteOutline, MdVisibility, MdVisibilityOff } from "react-icons/md";
 import ifscBankMappingRaw from './ifsc_bank_mapping.json'; // Adjust path if needed
 
 // Convert mapping array to object for fast lookup
@@ -52,6 +52,8 @@ export default function WithdrawalPage() {
   const [withdrawAccount, setWithdrawAccount] = useState(null);
   const [withdrawPassword, setWithdrawPassword] = useState('');
   const [userBalance, setUserBalance] = useState(null);
+  const [processingWithdraw, setProcessingWithdraw] = useState(false);
+  const [showWithdrawPassword, setShowWithdrawPassword] = useState(false);
 
   const navigate = useNavigate();
 
@@ -321,9 +323,9 @@ export default function WithdrawalPage() {
       <ToastContainer />
       <Navbar />
       {/* Add Account Button */}
-      <div className="flex justify-center mt-4 mb-2">
+      <div className="flex justify-center mt-4 mb-2 px-2">
         <button
-          className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2 rounded-full shadow transition-all"
+          className="w-full max-w-xs bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2 rounded-full shadow transition-all"
           onClick={() => setShowAddAccount(true)}
         >
           ADD ACCOUNT
@@ -395,7 +397,7 @@ export default function WithdrawalPage() {
         </div>
       </div>
       {/* WhatsApp Help Bar */}
-      <div className="w-full flex justify-center mt-6 mb-2">
+      <div className="w-full flex justify-center mt-6 mb-2 px-2">
         <div className="w-full max-w-3xl bg-[#1a3ea7] text-white rounded-xl shadow-lg py-3 px-4 text-center font-bold text-sm flex flex-col items-center">
           FOR WITHDRAW PASSWORD RELATED ISSUES CLICK HERE
           <a
@@ -410,7 +412,7 @@ export default function WithdrawalPage() {
         </div>
       </div>
       {/* User Accounts for Withdrawal */}
-      <div className="w-full flex items-center px-10 mt-4">
+      <div className="w-full flex flex-col md:flex-row md:flex-wrap items-center gap-4 px-2 md:px-6 mt-4">
         {accountsLoading ? (
           <div className="text-center text-blue-700 py-8">Loading accounts...</div>
         ) : accountsError ? (
@@ -419,7 +421,11 @@ export default function WithdrawalPage() {
           <div className="text-center text-gray-500 py-8">No withdrawal accounts added yet.</div>
         ) : (
           accounts.map((acc) => (
-            <div key={acc.id} className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6 mb-6 relative">
+            <div
+              key={acc.id}
+              className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6 mb-6 relative flex flex-col"
+              style={{ minWidth: 0 }}
+            >
               {/* Delete button */}
               <button
                 className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 flex items-center justify-center"
@@ -455,18 +461,18 @@ export default function WithdrawalPage() {
               >
                 <MdDeleteOutline />
               </button>
-              <div className="text-center font-bold text-lg mb-2">{acc.account_holder_name}</div>
+              <div className="text-center font-bold text-lg mb-2 break-words">{acc.account_holder_name}</div>
               <div className="bg-gray-100 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
                   <span>Account No :</span>
-                  <span className="font-semibold">{acc.bank_account_number}</span>
+                  <span className="font-semibold break-all">{acc.bank_account_number}</span>
                   <button className="ml-2" onClick={() => navigator.clipboard.writeText(acc.bank_account_number)}>
                     <i className="fa fa-copy text-blue-700"></i>
                   </button>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                   <span>IFSC Code :</span>
-                  <span className="font-semibold">{acc.ifsc_code}</span>
+                  <span className="font-semibold break-all">{acc.ifsc_code}</span>
                   <button className="ml-2" onClick={() => navigator.clipboard.writeText(acc.ifsc_code)}>
                     <i className="fa fa-copy text-blue-700"></i>
                   </button>
@@ -514,7 +520,7 @@ export default function WithdrawalPage() {
 
       {/* Withdraw Confirm Modal */}
       {showWithdrawConfirm && withdrawAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 px-2">
           <div
             className="w-full max-w-md mx-2 p-0 overflow-hidden rounded-xl"
             style={{
@@ -523,7 +529,7 @@ export default function WithdrawalPage() {
               boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
             }}
           >
-            <div className="px-6 py-6">
+            <div className="px-4 py-6 sm:px-6">
               <div className="text-[#ffb800] text-2xl font-bold mb-4">Withdraw Confirmation</div>
               <div className="flex justify-between items-center mb-3">
                 <span className="text-white text-lg">Balance</span>
@@ -533,13 +539,13 @@ export default function WithdrawalPage() {
               </div>
               <div className="flex justify-between items-center mb-3">
                 <span className="text-white text-lg">Bank</span>
-                <span className="text-[#ffb800] font-bold text-lg text-right">
+                <span className="text-[#ffb800] font-bold text-lg text-right break-all">
                   {getBankNameWithIfsc(withdrawAccount.ifsc_code)}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-3">
                 <span className="text-white text-lg">Account No</span>
-                <span className="text-[#ffb800] font-bold text-lg">
+                <span className="text-[#ffb800] font-bold text-lg break-all">
                   {withdrawAccount.bank_account_number}
                 </span>
               </div>
@@ -551,34 +557,52 @@ export default function WithdrawalPage() {
               </div>
               <div className="mb-4 mt-6">
                 <label className="block text-white mb-2 font-semibold text-lg">Verify Withdrawal Password</label>
-                <input
-                  type="password"
-                  value={withdrawPassword}
-                  onChange={e => setWithdrawPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded bg-[#222] border border-[#ffb800] text-[#ffb800] focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder-[#bfa94a] text-lg"
-                  placeholder="Enter withdrawal password"
-                />
+                <div className="relative">
+                  <input
+                    type={showWithdrawPassword ? "text" : "password"}
+                    value={withdrawPassword}
+                    onChange={e => setWithdrawPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded bg-[#222] border border-[#ffb800] text-[#ffb800] focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder-[#bfa94a] text-lg pr-12"
+                    placeholder="Enter withdrawal password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xl text-[#ffb800] focus:outline-none"
+                    onClick={() => setShowWithdrawPassword(v => !v)}
+                    tabIndex={-1}
+                    aria-label={showWithdrawPassword ? "Hide password" : "Show password"}
+                  >
+                    {showWithdrawPassword ? <MdVisibilityOff /> : <MdVisibility />}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-4 mt-2">
+              <div className="flex flex-col sm:flex-row gap-4 mt-2">
                 <button
                   className="flex-1 bg-[#3a4252] hover:bg-[#232733] text-white py-3 rounded font-semibold text-lg transition"
-                  onClick={() => setShowWithdrawConfirm(false)}
+                  onClick={() => {
+                    if (!processingWithdraw) {
+                      setShowWithdrawConfirm(false);
+                    }
+                  }}
+                  disabled={processingWithdraw}
                 >
                   Cancel
                 </button>
                 <button
                   className="flex-1 bg-[#ffb800] hover:bg-[#ffd700] text-black py-3 rounded font-bold text-lg transition"
                   onClick={async () => {
-                    // Use the correct amount for this account
+                    if (processingWithdraw) return;
                     const withdrawAmount = withdrawInputs[withdrawAccount.id]?.amount;
                     if (!withdrawAccount || !withdrawAmount || !withdrawPassword) {
                       toast.error('Please fill all fields');
                       return;
                     }
+                    setProcessingWithdraw(true);
                     try {
                       const token = await getValidAccessToken();
                       if (!token) {
                         toast.error('Not authenticated');
+                        setProcessingWithdraw(false);
                         return;
                       }
                       const res = await fetch('https://color-prediction-742i.onrender.com/withdrawls', {
@@ -597,6 +621,7 @@ export default function WithdrawalPage() {
                       const data = await res.json();
                       if (!res.ok) {
                         toast.error(data.message || data.detail || 'Withdrawal failed');
+                        setProcessingWithdraw(false);
                         return;
                       }
                       toast.success(data.message || 'Withdrawal request submitted!');
@@ -609,10 +634,13 @@ export default function WithdrawalPage() {
                       fetchWithdrawalHistory();
                     } catch (err) {
                       toast.error('Withdrawal failed');
+                    } finally {
+                      setProcessingWithdraw(false);
                     }
                   }}
+                  disabled={processingWithdraw}
                 >
-                  Confirm withdrawal
+                  {processingWithdraw ? "Processing..." : "Confirm withdrawal"}
                 </button>
               </div>
             </div>
@@ -621,7 +649,7 @@ export default function WithdrawalPage() {
       )}
       {/* Add Account Modal */}
       {showAddAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 px-2">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 p-0 overflow-hidden">
             <div className="bg-[#1a3ea7] text-white text-lg font-bold px-6 py-4 flex justify-between items-center">
               <span>Add account</span>
@@ -686,7 +714,7 @@ export default function WithdrawalPage() {
                   />
                 </div>
               )}
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
                 <button
                   type="button"
                   className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded"
