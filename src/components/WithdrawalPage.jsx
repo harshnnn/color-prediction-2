@@ -3,6 +3,16 @@ import Navbar from './Navbar';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
+import { MdDeleteOutline } from "react-icons/md";
+import ifscBankMappingRaw from './ifsc_bank_mapping.json'; // Adjust path if needed
+
+// Convert mapping array to object for fast lookup
+const ifscBankMapping = {};
+ifscBankMappingRaw.forEach(item => {
+  if (item.IFSC_Prefix && item.Bank_Name) {
+    ifscBankMapping[item.IFSC_Prefix.toUpperCase()] = item.Bank_Name;
+  }
+});
 
 // Withdrawal rules
 const withdrawalRules = [
@@ -35,6 +45,13 @@ export default function WithdrawalPage() {
 
   // Track if user has set withdrawal password (only ask on first account)
   const [hasWithdrawPassword, setHasWithdrawPassword] = useState(false);
+
+  // Withdraw functionality
+  const [withdrawInputs, setWithdrawInputs] = useState({}); // { [accountId]: { amount: '', error: '' } }
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [withdrawAccount, setWithdrawAccount] = useState(null);
+  const [withdrawPassword, setWithdrawPassword] = useState('');
+  const [userBalance, setUserBalance] = useState(null);
 
   const navigate = useNavigate();
 
@@ -158,6 +175,33 @@ export default function WithdrawalPage() {
     fetchAccounts();
   }, [getValidAccessToken, showAddAccount]);
 
+  // Fetch user balance
+  const fetchUserBalance = useCallback(async () => {
+    try {
+      const token = await getValidAccessToken();
+      if (!token) return;
+      const res = await fetch('https://color-prediction-742i.onrender.com/users/', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setUserBalance(data.wallet?.balance ?? null);
+    } catch {}
+  }, [getValidAccessToken]);
+
+  useEffect(() => {
+    fetchUserBalance();
+  }, [fetchUserBalance]);
+
+  // Helper to get bank name from IFSC
+  function getBankNameWithIfsc(ifsc) {
+    if (!ifsc) return '';
+    const prefix = ifsc.slice(0, 4).toUpperCase();
+    const bankName = ifscBankMapping[prefix] || '';
+    return bankName ? `${bankName} (${ifsc})` : ifsc;
+  }
+
   // Add account handler
   const handleAddAccount = async (e) => {
     e.preventDefault();
@@ -215,6 +259,62 @@ export default function WithdrawalPage() {
     }
   };
 
+  // Withdraw button handler (per account)
+  const handleWithdrawClick = (acc) => {
+    const input = withdrawInputs[acc.id] || { amount: '' };
+    let error = '';
+    if (!input.amount || isNaN(Number(input.amount))) {
+      error = 'Please enter a valid amount';
+    } else if (Number(input.amount) < 100) {
+      error = 'Minimum amount is ₹100';
+    } else if (Number(input.amount) > 50000) {
+      error = 'Maximum amount is ₹50,000';
+    }
+    setWithdrawInputs((prev) => ({
+      ...prev,
+      [acc.id]: { ...input, error }
+    }));
+    if (error) return;
+    setWithdrawAccount(acc);
+    setShowWithdrawConfirm(true);
+  };
+
+  // Move fetchWithdrawalHistory out of useEffect so you can call it after withdrawal
+  const fetchWithdrawalHistory = useCallback(async () => {
+    setWithdrawalHistoryLoading(true);
+    setWithdrawalHistoryError(null);
+    try {
+      const token = await getValidAccessToken();
+      if (!token) {
+        setWithdrawalHistoryError('Not authenticated');
+        setWithdrawalHistoryLoading(false);
+        return;
+      }
+      const res = await fetch('https://color-prediction-742i.onrender.com/withdrawls', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        setWithdrawalHistoryError('Failed to fetch withdrawal history');
+        setWithdrawalHistoryLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setWithdrawalHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setWithdrawalHistoryError('Failed to fetch withdrawal history');
+    } finally {
+      setWithdrawalHistoryLoading(false);
+    }
+  }, [getValidAccessToken]);
+
+  // And update your useEffect to use this function:
+  useEffect(() => {
+    fetchWithdrawalHistory();
+  }, [fetchWithdrawalHistory]);
+
   // UI
   return (
     <div className="min-h-screen flex flex-col bg-[#f3f2f6]">
@@ -256,7 +356,6 @@ export default function WithdrawalPage() {
                       <th className="px-2 py-2 font-semibold">STATUS</th>
                       <th className="px-2 py-2 font-semibold">ACCOUNT</th>
                       <th className="px-2 py-2 font-semibold">DATE</th>
-                      <th className="px-2 py-2 font-semibold">REASON</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -279,13 +378,12 @@ export default function WithdrawalPage() {
                               {row.status ? row.status.toUpperCase() : '-'}
                             </span>
                           </td>
-                          <td className="px-2 py-2">{row.account || '-'}</td>
+                          <td className="px-2 py-2">{row.bank_account || '-'}</td>
                           <td className="px-2 py-2">
                             {row.created_at
                               ? new Date(row.created_at).toLocaleString()
                               : row.date || '-'}
                           </td>
-                          <td className="px-2 py-2">{row.reason || '-'}</td>
                         </tr>
                       ))
                     )}
@@ -312,7 +410,7 @@ export default function WithdrawalPage() {
         </div>
       </div>
       {/* User Accounts for Withdrawal */}
-      <div className="w-full flex flex-col items-center mt-4">
+      <div className="w-full flex items-center px-10 mt-4">
         {accountsLoading ? (
           <div className="text-center text-blue-700 py-8">Loading accounts...</div>
         ) : accountsError ? (
@@ -320,9 +418,9 @@ export default function WithdrawalPage() {
         ) : accounts.length === 0 ? (
           <div className="text-center text-gray-500 py-8">No withdrawal accounts added yet.</div>
         ) : (
-          accounts.map((acc, idx) => (
-            <div key={idx} className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6 mb-6 relative">
-              {/* Delete button in top right */}
+          accounts.map((acc) => (
+            <div key={acc.id} className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6 mb-6 relative">
+              {/* Delete button */}
               <button
                 className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 flex items-center justify-center"
                 title="Delete Account"
@@ -349,14 +447,13 @@ export default function WithdrawalPage() {
                       return;
                     }
                     toast.success('Account deleted successfully!');
-                    // Remove from UI
                     setAccounts((prev) => prev.filter((a) => a.id !== acc.id));
                   } catch {
                     toast.error('Failed to delete account');
                   }
                 }}
               >
-                <i className="fa fa-trash"></i>
+                <MdDeleteOutline />
               </button>
               <div className="text-center font-bold text-lg mb-2">{acc.account_holder_name}</div>
               <div className="bg-gray-100 rounded-lg p-4 mb-4">
@@ -378,16 +475,31 @@ export default function WithdrawalPage() {
               {/* Withdraw input and button */}
               <form
                 className="flex flex-col gap-3"
-                // onSubmit={e => handleWithdraw(e, acc)}
+                onSubmit={e => {
+                  e.preventDefault();
+                  handleWithdrawClick(acc);
+                }}
               >
                 <input
                   type="number"
-                  min={300}
+                  min={100}
+                  max={50000}
                   placeholder="Enter amount"
                   className="w-full px-4 py-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  // value={withdrawAmount}
-                  // onChange={e => setWithdrawAmount(e.target.value)}
+                  value={withdrawInputs[acc.id]?.amount || ''}
+                  onChange={e =>
+                    setWithdrawInputs((prev) => ({
+                      ...prev,
+                      [acc.id]: {
+                        amount: e.target.value,
+                        error: ''
+                      }
+                    }))
+                  }
                 />
+                {withdrawInputs[acc.id]?.error && (
+                  <div className="text-red-600 text-sm">{withdrawInputs[acc.id].error}</div>
+                )}
                 <button
                   type="submit"
                   className="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-3 rounded transition-all text-lg"
@@ -399,6 +511,114 @@ export default function WithdrawalPage() {
           ))
         )}
       </div>
+
+      {/* Withdraw Confirm Modal */}
+      {showWithdrawConfirm && withdrawAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div
+            className="w-full max-w-md mx-2 p-0 overflow-hidden rounded-xl"
+            style={{
+              background: "#181818",
+              border: "1.5px solid #ffb800",
+              boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
+            }}
+          >
+            <div className="px-6 py-6">
+              <div className="text-[#ffb800] text-2xl font-bold mb-4">Withdraw Confirmation</div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white text-lg">Balance</span>
+                <span className="text-[#ffb800] font-bold text-lg">
+                  ₹ {userBalance !== null ? userBalance : '--'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white text-lg">Bank</span>
+                <span className="text-[#ffb800] font-bold text-lg text-right">
+                  {getBankNameWithIfsc(withdrawAccount.ifsc_code)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white text-lg">Account No</span>
+                <span className="text-[#ffb800] font-bold text-lg">
+                  {withdrawAccount.bank_account_number}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white text-lg">Amount</span>
+                <span className="text-[#ffb800] font-bold text-lg">
+                  ₹ {withdrawInputs[withdrawAccount.id]?.amount}
+                </span>
+              </div>
+              <div className="mb-4 mt-6">
+                <label className="block text-white mb-2 font-semibold text-lg">Verify Withdrawal Password</label>
+                <input
+                  type="password"
+                  value={withdrawPassword}
+                  onChange={e => setWithdrawPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded bg-[#222] border border-[#ffb800] text-[#ffb800] focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder-[#bfa94a] text-lg"
+                  placeholder="Enter withdrawal password"
+                />
+              </div>
+              <div className="flex gap-4 mt-2">
+                <button
+                  className="flex-1 bg-[#3a4252] hover:bg-[#232733] text-white py-3 rounded font-semibold text-lg transition"
+                  onClick={() => setShowWithdrawConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 bg-[#ffb800] hover:bg-[#ffd700] text-black py-3 rounded font-bold text-lg transition"
+                  onClick={async () => {
+                    // Use the correct amount for this account
+                    const withdrawAmount = withdrawInputs[withdrawAccount.id]?.amount;
+                    if (!withdrawAccount || !withdrawAmount || !withdrawPassword) {
+                      toast.error('Please fill all fields');
+                      return;
+                    }
+                    try {
+                      const token = await getValidAccessToken();
+                      if (!token) {
+                        toast.error('Not authenticated');
+                        return;
+                      }
+                      const res = await fetch('https://color-prediction-742i.onrender.com/withdrawls', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          bank_account: String(withdrawAccount.bank_account_number),
+                          ifsc_code: withdrawAccount.ifsc_code,
+                          amount: Number(withdrawAmount),
+                          withdraw_password: withdrawPassword,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        toast.error(data.message || data.detail || 'Withdrawal failed');
+                        return;
+                      }
+                      toast.success(data.message || 'Withdrawal request submitted!');
+                      setShowWithdrawConfirm(false);
+                      setWithdrawPassword('');
+                      setWithdrawInputs((prev) => ({
+                        ...prev,
+                        [withdrawAccount.id]: { amount: '', error: '' }
+                      }));
+                      fetchWithdrawalHistory();
+                    } catch (err) {
+                      toast.error('Withdrawal failed');
+                    }
+                  }}
+                >
+                  Confirm withdrawal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Add Account Modal */}
       {showAddAccount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">

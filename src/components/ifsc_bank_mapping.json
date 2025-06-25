@@ -1,0 +1,62 @@
+[
+  {
+    "IFSC_Prefix": "SBIN",
+    "Bank_Name": "State Bank of India"
+  },
+  {
+    "IFSC_Prefix": "HDFC",
+    "Bank_Name": "HDFC Bank"
+  },
+  {
+    "IFSC_Prefix": "ICIC",
+    "Bank_Name": "ICICI Bank"
+  },
+  {
+    "IFSC_Prefix": "PUNB",
+    "Bank_Name": "Punjab National Bank"
+  },
+  {
+    "IFSC_Prefix": "BARB",
+    "Bank_Name": "Bank of Baroda"
+  },
+  {
+    "IFSC_Prefix": "KKBK",
+    "Bank_Name": "Kotak Mahindra Bank"
+  },
+  {
+    "IFSC_Prefix": "UTIB",
+    "Bank_Name": "Axis Bank"
+  },
+  {
+    "IFSC_Prefix": "YESB",
+    "Bank_Name": "YES Bank"
+  },
+  {
+    "IFSC_Prefix": "IDFB",
+    "Bank_Name": "IDFC FIRST Bank"
+  },
+  {
+    "IFSC_Prefix": "INDB",
+    "Bank_Name": "IndusInd Bank"
+  },
+  {
+    "IFSC_Prefix": "MAHB",
+    "Bank_Name": "Bank of Maharashtra"
+  },
+  {
+    "IFSC_Prefix": "UBIN",
+    "Bank_Name": "Union Bank of India"
+  },
+  {
+    "IFSC_Prefix": "CNRB",
+    "Bank_Name": "Canara Bank"
+  },
+  {
+    "IFSC_Prefix": "CORP",
+    "Bank_Name": "Corporation Bank"
+  },
+  {
+    "IFSC_Prefix": "CBIN",
+    "Bank_Name": "Central Bank of India"
+  }
+]
