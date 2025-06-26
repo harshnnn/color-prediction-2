@@ -201,29 +201,70 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="w-full flex flex-wrap items-center justify-between px-2 sm:px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg mb-4 min-h-[54px]">
-        {/* Logo (left) */}
-        <div className="flex items-center gap-2">
+      {/* Responsive Navbar */}
+      <nav className="w-full">
+        {/* Mobile: Top Row */}
+        <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px] sm:hidden">
+          {/* Logo */}
           <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>
-            69<span className="text-white">EXCH</span>
+            99<span className="text-white">EXCH</span>
           </span>
-        </div>
-        {/* Deposit & Withdrawal & Account (right) */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Deposit onClick={() => navigate('/Deposit')} />
-          <Withdrawal onClick={() => navigate('/Withdrawl')} />
+          {/* Profile/User Button */}
           <button
             onClick={handleOpenUserPanel}
-            className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
             title="Account"
             aria-label="Account"
           >
-            {/* User icon SVG */}
             <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
               <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
             </svg>
           </button>
+        </div>
+        {/* Mobile: Bottom Row */}
+        <div className="flex items-center  justify-center gap-2 px-3 pb-2 sm:hidden">
+          <button
+            onClick={() => navigate('/Deposit')}
+            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded shadow text-base"
+            style={{ minWidth: 0 }}
+          >
+            <i className="fa fa-piggy-bank text-lg"></i>
+            DEPOSIT
+          </button>
+          <button
+            onClick={() => navigate('/Withdrawl')}
+            className="flex-1 flex items-center justify-center gap-2 bg-red-700 hover:bg-red-800 text-white font-bold py-2 rounded shadow text-base"
+            style={{ minWidth: 0 }}
+          >
+            <i className="fa fa-exchange-alt text-lg"></i>
+            WITHDRAWAL
+          </button>
+        </div>
+        {/* Desktop/Tablet: Original Navbar */}
+        <div className="hidden sm:flex w-full flex-wrap items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg mb-4 min-h-[54px]">
+          {/* Logo (left) */}
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>
+              99<span className="text-white">EXCH</span>
+            </span>
+          </div>
+          {/* Deposit & Withdrawal & Account (right) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Deposit onClick={() => navigate('/Deposit')} />
+            <Withdrawal onClick={() => navigate('/Withdrawl')} />
+            <button
+              onClick={handleOpenUserPanel}
+              className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+              title="Account"
+              aria-label="Account"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+                <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </nav>
       {/* User Management Panel */}
