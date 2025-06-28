@@ -572,26 +572,55 @@ function GameBoard() {
             <div className={timeLeft <= 5 || showResult ? "pointer-events-none opacity-30 transition-all bg-[#22275b] p-2" : "bg-[#22275b] p-2"}>
                 {/* Game Type Selection - Enhanced with animations */}
                 <div className="flex gap-0 mb-6 w-full justify-center">
-                    {GAME_TYPES.map((type) => (
-                        <button
-                            key={type.label}
-                            className={`flex flex-col items-center justify-center w-23 h-23 rounded-xl font-sm transition-all transform hover:scale-105 ${gameType.label === type.label
-                                ? '!bg-gradient-to-b !from-[#2aaaf3] !to-[#2979f2] text-white shadow-lg scale-105 border-2 border-blue-300'
-                                : 'bg-[#37499e] text-gray-300 hover:bg-[#3e379e] border border-gray-700'
-                                }`}
-                            onClick={() => handleGameTypeChange(type)}
-                        >
-                            <div className="text-xl mb-1">🕐</div>
-                            <div className="text-xs text-center leading-tight">
-                                <div>Win Go</div>
-                                <div className="font-normal">
-                                    {type.label.includes('30Sec') ? '30Sec' :
-                                        type.label.includes('1Min') ? '1Min' :
-                                            type.label.includes('3Min') ? '3Min' : '5Min'}
+                    {GAME_TYPES.map((type, idx) => {
+                        // Determine border radius for each button
+                        let borderRadiusStyle = {};
+                        if (gameType.label === type.label) {
+                            // If selected, all corners 10px
+                            borderRadiusStyle = {
+                                borderRadius: '10px',
+                            };
+                        } else if (idx === 0) {
+                            borderRadiusStyle = {
+                                borderTopLeftRadius: '10px',
+                                borderBottomLeftRadius: '10px',
+                                borderTopRightRadius: '0px',
+                                borderBottomRightRadius: '0px',
+                            };
+                        } else if (idx === GAME_TYPES.length - 1) {
+                            borderRadiusStyle = {
+                                borderTopLeftRadius: '0px',
+                                borderBottomLeftRadius: '0px',
+                                borderTopRightRadius: '10px',
+                                borderBottomRightRadius: '10px',
+                            };
+                        } else {
+                            borderRadiusStyle = {
+                                borderRadius: '0px',
+                            };
+                        }
+                        return (
+                            <button
+                                key={type.label}
+                                className={`flex flex-col items-center justify-center w-23 h-23 font-sm transition-all transform hover:scale-105 ${gameType.label === type.label
+                                    ? '!bg-gradient-to-b !from-[#2aaaf3] !to-[#2979f2] text-white shadow-lg scale-101 border-1 border-blue-300'
+                                    : 'bg-[#37499e] text-gray-300 hover:bg-[#3e379e] border border-gray-700'
+                                    }`}
+                                style={borderRadiusStyle}
+                                onClick={() => handleGameTypeChange(type)}
+                            >
+                                <div className="text-xl mb-1">🕐</div>
+                                <div className="text-xs text-center leading-tight">
+                                    <div>Win Go</div>
+                                    <div className="font-normal">
+                                        {type.label.includes('30Sec') ? '30Sec' :
+                                            type.label.includes('1Min') ? '1Min' :
+                                                type.label.includes('3Min') ? '3Min' : '5Min'}
+                                    </div>
                                 </div>
-                            </div>
-                        </button>
-                    ))}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Timer and Period Section - Ticket style, smaller & responsive, always show divider & cutouts */}
@@ -824,7 +853,7 @@ function GameBoard() {
                     </button>
                     <button
                         className="bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white w-full px-8 py-3 rounded-xl font-medium shadow-lg transform hover:scale-105 transition-all"
-                             style={{
+                        style={{
                             borderTopLeftRadius: '0px',
                             borderBottomLeftRadius: '0px',
                             borderTopRightRadius: '20px',
@@ -949,23 +978,35 @@ function GameBoard() {
 
                 {/* Game History */}
 
-
                 {/* Tabs for History and My Bets - Enhanced */}
-                <div className="flex gap-2 mb-3 w-full justify-center">
+                <div className="flex w-full mb-3">
                     <button
-                        className={`px-6 py-2 rounded-full font-medium transition-all ${activeTab === 'history'
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
-                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        className={`px-6 py-2 font-medium transition-all ${activeTab === 'history'
+                                ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             }`}
+                        style={{
+                            borderTopLeftRadius: '15px',
+                            borderBottomLeftRadius: '15px',
+                            borderTopRightRadius: '15px',
+                            borderBottomRightRadius: '15px',
+                        }}
                         onClick={() => setActiveTab('history')}
                     >
                         Game History
                     </button>
+                    <div className="flex-1" />
                     <button
-                        className={`px-6 py-2 rounded-full font-medium transition-all ${activeTab === 'mybets'
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
-                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        className={`px-6 py-2 font-medium transition-all ${activeTab === 'mybets'
+                                ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             }`}
+                        style={{
+                            borderTopLeftRadius: '15px',
+                            borderBottomLeftRadius: '15px',
+                            borderTopRightRadius: '15px',
+                            borderBottomRightRadius: '15px',
+                        }}
                         onClick={() => setActiveTab('mybets')}
                     >
                         My Bets
@@ -983,12 +1024,12 @@ function GameBoard() {
                             <div className="col-span-3 text-center">Big/Small</div>
                             <div className="col-span-2 text-center">Color</div>
                         </div>
-                        <div className="bg-white rounded-b-lg">
+                        <div className="bg-[#2B3270] rounded-b-lg">
                             {resultHistory.slice(0, 10).map((res, idx) => (
                                 <div key={idx} className="grid grid-cols-12 gap-1 px-2 py-2 border-b last:border-b-0 items-center">
                                     {/* Period - more space, smaller font, truncate if needed */}
-                                    <div className="col-span-5 text-gray-700 text-left truncate pl-2">
-                                        <span className="text-sm md:text-base">{res.period}</span>
+                                    <div className="col-span-5 text-white text-left truncate pl-2">
+                                        <span className="text-xs md:text-base">{res.period}</span>
                                     </div>
 
                                     {/* Number - centered in its column */}
@@ -998,7 +1039,7 @@ function GameBoard() {
 
                                     {/* Big/Small - centered */}
                                     <div className="col-span-3 text-center">
-                                        <span className="font-medium text-sm">{res.bigSmall}</span>
+                                        <span className="font-medium text-sm text-white">{res.bigSmall}</span>
                                     </div>
 
                                     {/* Color - circle only, aligned center */}
