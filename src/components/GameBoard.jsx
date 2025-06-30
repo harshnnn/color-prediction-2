@@ -343,7 +343,7 @@ useEffect(() => {
         };
 
         return () => ws.close();
-    }, [gameType.label, gameType.duration]); // Add dependencies to re-establish when game type changes
+    }, []); // Add dependencies to re-establish when game type changes
 
     // 3. Timer logic: only restart timer when period changes
   // Replace your period-based timer effect with this one
