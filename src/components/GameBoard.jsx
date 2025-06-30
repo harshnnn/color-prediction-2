@@ -190,27 +190,37 @@ function GameBoard() {
     }, [tryRefreshToken]);
 
     // 1. Fetch result history only once on mount
-    useEffect(() => {
-        const fetchHistory = async () => {
-            try {
-                setLoading(true);
-                const res = await fetch('https://color-prediction-742i.onrender.com/results');
-                const data = await res.json();
-                const mapped = data
-                    .filter(r => r.number !== -1)
-                    .map(r => ({
-                        ...r,
-                        ...getColorAndBigSmall(r.number)
-                    }));
-                setResultHistory(mapped);
-            } catch (e) {
-                // handle error
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchHistory();
-    }, []);
+  // Replace the existing result history fetch useEffect with this:
+useEffect(() => {
+    // Map gameType.label to type_ param for API
+    const typeMap = {
+        'Win Go 30Sec': '30S',
+        'Win Go 1Min': '1M',
+        'Win Go 3Min': '3M',
+        'Win Go 5Min': '5M',
+    };
+    const type_ = typeMap[gameType.label] || '30S';
+
+    const fetchHistory = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`https://color-prediction-742i.onrender.com/results?type_=${type_}`);
+            const data = await res.json();
+            const mapped = data
+                .filter(r => r.number !== -1)
+                .map(r => ({
+                    ...r,
+                    ...getColorAndBigSmall(r.number)
+                }));
+            setResultHistory(mapped);
+        } catch (e) {
+            // handle error
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchHistory();
+}, [gameType]);
 
     // 2. WebSocket: Only connect once on mount
     // Add this state at the top with other useState calls
