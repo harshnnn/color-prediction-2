@@ -3,6 +3,7 @@ import Deposit from './Deposit';
 import Withdrawal from './Withdrawal';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ const Navbar = () => {
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
   const [changePasswordError, setChangePasswordError] = useState('');
   const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
-  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [userInfo, setUserInfo] = useState({ username: '', balance: null });
@@ -152,16 +152,19 @@ const Navbar = () => {
     e.preventDefault();
     setChangePasswordError('');
     setChangePasswordSuccess('');
-    if (!oldPassword || !newPassword || !confirmNewPassword) {
+    if (!newPassword || !confirmNewPassword) {
       setChangePasswordError('All fields are required.');
+      toast.error('All fields are required.');
       return;
     }
     if (newPassword.length < 6) {
       setChangePasswordError('New password must be at least 6 characters.');
+      toast.error('New password must be at least 6 characters.');
       return;
     }
     if (newPassword !== confirmNewPassword) {
       setChangePasswordError('New passwords do not match.');
+      toast.error('New passwords do not match.');
       return;
     }
     setChangePasswordLoading(true);
@@ -169,31 +172,35 @@ const Navbar = () => {
       let token = await getValidAccessToken();
       if (!token) {
         setChangePasswordError('No authentication token found.');
+        toast.error('No authentication token found.');
         setChangePasswordLoading(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/users/change-password', {
+      const res = await fetch('https://color-prediction-742i.onrender.com/auth/password_reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          old_password: oldPassword,
-          new_password: newPassword,
+          password: newPassword,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || 'Failed to change password.');
+        setChangePasswordError(data.message || 'Failed to change password.');
+        toast.error(data.message || 'Failed to change password.');
+        setChangePasswordLoading(false);
+        return;
       }
       setChangePasswordSuccess('Password changed successfully!');
-      setOldPassword('');
+      toast.success(data.message || 'Password changed successfully!');
       setNewPassword('');
       setConfirmNewPassword('');
       setShowChangePassword(false);
     } catch (err) {
       setChangePasswordError(err.message || 'Failed to change password.');
+      toast.error(err.message || 'Failed to change password.');
     } finally {
       setChangePasswordLoading(false);
     }
@@ -336,13 +343,6 @@ const Navbar = () => {
                   )}
                   <input
                     type="password"
-                    placeholder="Old Password"
-                    className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
-                    value={oldPassword}
-                    onChange={e => setOldPassword(e.target.value)}
-                  />
-                  <input
-                    type="password"
                     placeholder="New Password"
                     className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
                     value={newPassword}
@@ -376,40 +376,40 @@ const Navbar = () => {
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {[...transactions].reverse().map((txn, idx) => {
-                      let typeLabel = '';
-                      let typeColor = '';
-                      if (txn.type_ === 'bet') {
-                        typeLabel = 'Bet Placed';
-                        typeColor = 'bg-blue-700 text-blue-200';
-                      } else if (txn.type_ === 'deposit') {
-                        typeLabel = 'Deposit';
-                        typeColor = 'bg-green-700 text-green-200';
-                      } else if (txn.type_ === 'withdraw') {
-                        typeLabel = 'Withdrawal';
-                        typeColor = 'bg-red-700 text-red-200';
+                      // Determine amount sign
+                      const amountStr = txn.debit
+                        ? `-${txn.amount}`
+                        : `+${txn.amount}`;
+                      const amountColor =
+                        txn.debit
+                          ? 'text-red-400'
+                          : 'text-green-400';
+
+                      // Determine remark label
+                      let remarkLabel = '';
+                      if (txn.remark && txn.remark.startsWith('Casino[')) {
+                        remarkLabel = 'Bet';
+                      } else if (txn.remark === 'Withdraw') {
+                        remarkLabel = 'Withdraw';
+                      } else if (txn.remark === 'Deposit') {
+                        remarkLabel = 'Deposit';
                       } else {
-                        typeLabel = txn.type_ || 'Transaction';
-                        typeColor = 'bg-gray-700 text-gray-200';
+                        remarkLabel = txn.remark || 'Transaction';
                       }
+
+                      // Date string
                       const dateStr = txn.created_at
                         ? new Date(txn.created_at).toLocaleString()
                         : '';
-                      const amount = txn.amount;
-                      const amountStr = amount > 0 ? `+${amount}` : `${amount}`;
-                      const amountColor =
-                        amount > 0
-                          ? 'text-green-400'
-                          : amount < 0
-                          ? 'text-red-400'
-                          : 'text-blue-200';
+
                       return (
                         <div
                           key={idx}
                           className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-3 flex justify-between items-center shadow"
                         >
                           <div>
-                            <div className={`font-bold px-2 py-1 rounded ${typeColor} inline-block mb-1`}>
-                              {typeLabel}
+                            <div className="font-medium px-2 py-1 rounded bg-gray-700 text-gray-200 inline-block mb-1">
+                              Remark - {remarkLabel}
                             </div>
                             <div className="text-blue-200 text-xs">{dateStr}</div>
                           </div>
