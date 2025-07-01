@@ -198,7 +198,7 @@ function GameBoard() {
             Number(day),
             Number(hour),
             Number(min),
-            Number(sec)-2
+            Number(sec)
         ));
     }
 
