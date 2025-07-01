@@ -41,6 +41,14 @@ const NUMBER_COLORS = {
     9: 'green',
 };
 
+// Move this outside the component - defined once
+const TYPE_MAP = {
+    'Win Go 30Sec': '30S',
+    'Win Go 1Min': '1M',
+    'Win Go 3Min': '3M',
+    'Win Go 5Min': '5M',
+};
+
 // Helper to get color and big/small from number
 function getColorAndBigSmall(number) {
     let color = '';
@@ -51,48 +59,7 @@ function getColorAndBigSmall(number) {
     return { color, bigSmall };
 }
 
-// Parse period string as UTC date
-function parsePeriodToUTCDate(period) {
-    // period: "20250610111829" => 2025-06-10T11:18:29Z (Z = UTC)
-    const year = period.slice(0, 4);
-    const month = period.slice(4, 6);
-    const day = period.slice(6, 8);
-    const hour = period.slice(8, 10);
-    const min = period.slice(10, 12);
-    const sec = period.slice(12, 14);
-    return new Date(Date.UTC(year, month - 1, day, hour, min, sec));
-}
 
-// Helper to refresh access token using refresh token
-async function getValidAccessToken() {
-    let accessToken = localStorage.getItem('access_token');
-    if (accessToken && !isTokenExpired(accessToken)) {
-        return accessToken;
-    }
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) return null;
-    try {
-        const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-        if (!res.ok) {
-            // Remove tokens if refresh fails
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            return null;
-        }
-        const data = await res.json();
-        if (data.access_token) {
-            localStorage.setItem('access_token', data.access_token);
-            return data.access_token;
-        }
-        return null;
-    } catch {
-        return null;
-    }
-}
 
 function GameBoard() {
     const { logout } = useAuth();
@@ -132,6 +99,7 @@ function GameBoard() {
         '3M': null,
         '5M': null
     });
+    const periodEndTimeRef = useRef(null);
 
     // Helper to refresh access token using refresh token
     const tryRefreshToken = useCallback(async () => {
@@ -190,241 +158,165 @@ function GameBoard() {
     }, [tryRefreshToken]);
 
     // 1. Fetch result history only once on mount
-  // Replace the existing result history fetch useEffect with this:
-useEffect(() => {
-    // Map gameType.label to type_ param for API
-    const typeMap = {
-        'Win Go 30Sec': '30S',
-        'Win Go 1Min': '1M',
-        'Win Go 3Min': '3M',
-        'Win Go 5Min': '5M',
-    };
-    const type_ = typeMap[gameType.label] || '30S';
+    // Replace the existing result history fetch useEffect with this:
+    useEffect(() => {
+        // Map gameType.label to type_ param for API
+        const type_ = TYPE_MAP[gameType.label] || '30S';
 
-    const fetchHistory = async () => {
-        try {
-            setLoading(true);
-            const res = await fetch(`https://color-prediction-742i.onrender.com/results?type_=${type_}`);
-            const data = await res.json();
-            const mapped = data
-                .filter(r => r.number !== -1)
-                .map(r => ({
-                    ...r,
-                    ...getColorAndBigSmall(r.number)
-                }));
-            setResultHistory(mapped);
-        } catch (e) {
-            // handle error
-        } finally {
-            setLoading(false);
-        }
-    };
-    fetchHistory();
-}, [gameType]);
+        const fetchHistory = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch(`https://color-prediction-742i.onrender.com/results?type_=${type_}`);
+                const data = await res.json();
+                const mapped = data
+                    .filter(r => r.number !== -1)
+                    .map(r => ({
+                        ...r,
+                        ...getColorAndBigSmall(r.number)
+                    }));
+                setResultHistory(mapped);
+            } catch (e) {
+                // handle error
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchHistory();
+    }, [gameType]);
 
-    // 2. WebSocket: Only connect once on mount
-    // Add this state at the top with other useState calls
+    function parsePeriodToUTCDate(period) {
+        const year = period.slice(0, 4);
+        const month = period.slice(4, 6);
+        const day = period.slice(6, 8);
+        const hour = period.slice(8, 10);
+        const min = period.slice(10, 12);
+        const sec = period.slice(12, 14);
+        // Parse as UTC
+        return new Date(Date.UTC(
+            Number(year),
+            Number(month) -1,
+            Number(day),
+            Number(hour),
+            Number(min),
+            Number(sec)-2
+        ));
+    }
 
-    // Replace the current WebSocket onmessage handler with this updated one
+
+    // --- WebSocket & Timer Logic ---
+
+    const [periods, setPeriods] = useState({
+        '30S': { period: '', endTime: null, timeLeft: 0, result: null },
+        '1M': { period: '', endTime: null, timeLeft: 0, result: null },
+        '3M': { period: '', endTime: null, timeLeft: 0, result: null },
+        '5M': { period: '', endTime: null, timeLeft: 0, result: null },
+    });
+    const timerRefs = useRef({});
+
     useEffect(() => {
         const ws = new WebSocket('wss://color-prediction-742i.onrender.com/ws');
-        ws.onopen = () => {
-            setWsReady(true);
-            console.log('WebSocket connected');
-        };
+        ws.onopen = () => setWsReady(true);
 
         ws.onmessage = (event) => {
             const msg = event.data.trim();
 
-            // Period/start-time message (new format with game type)
-            // Format: "20250630215056 1M 2025-06-30 21:50:56.911669+05:30"
-            const periodRegex = /^(\d{14}) (30S|1M|3M|5M) (\d{4}-\d{2}-\d{2}.+)$/;
-            const periodMatch = msg.match(periodRegex);
-
+            // Period message: "20250701194956 30S 2025-07-01 19:49:56.678930+05:30"
+            const periodMatch = msg.match(/^(\d{14}) (30S|1M|3M|5M) (\d{4}-\d{2}-\d{2}.+)$/);
             if (periodMatch) {
-                const periodStr = periodMatch[1];
-                const type_ = periodMatch[2];
-                const datetimeStr = periodMatch[3];
+                const [, periodStr, type_] = periodMatch;
 
-                // Save period info for this game type
-                setLatestPeriods(prev => ({
-                    ...prev,
-                    [type_]: { periodStr, datetimeStr }
-                }));
+                // Use your helper to get the period end time (UTC)
+                const periodEndTime = parsePeriodToUTCDate(periodStr);
 
-                // Only update UI if this is for the current game type
-                const typeMap = {
-                    'Win Go 30Sec': '30S',
-                    'Win Go 1Min': '1M',
-                    'Win Go 3Min': '3M',
-                    'Win Go 5Min': '5M',
-                };
-                const currentType = typeMap[gameType.label];
+                // Get the duration for this game type
+                const duration = GAME_TYPES.find(g => TYPE_MAP[g.label] === type_).duration;
 
-                if (type_ === currentType) {
-                    // Calculate correct time difference based on the game type's duration
-                    const startTime = new Date(datetimeStr);
+                setPeriods(prev => {
+                    // Clear previous timer for this type
+                    if (timerRefs.current[type_]) clearInterval(timerRefs.current[type_]);
+                    // Calculate the real time left, always positive and within [0, duration]
                     const now = new Date();
-                    const elapsed = Math.floor((now - startTime) / 1000);
-                    const duration = gameType.duration;
-                    let diff = duration - elapsed;
-                    if (diff < 0) diff = 0;
-                    if (diff > duration) diff = duration;
+                    let diff = Math.floor((periodEndTime - now) / 1000);
+                    let timeLeft = ((diff % duration) + duration) % duration;
+                    // Start new timer for this type
+                    timerRefs.current[type_] = setInterval(() => {
+                        setPeriods(p => {
+                            const nowTick = new Date();
+                            let diffTick = Math.floor((periodEndTime - nowTick) / 1000);
+                            let timeLeftTick = ((diffTick % duration) + duration) % duration;
+                            return {
+                                ...p,
+                                [type_]: { ...p[type_], timeLeft: timeLeftTick }
+                            };
+                        });
+                    }, 1000);
 
-                    if (showResult) {
-                        setNextPeriodInfo({ periodStr, diff });
-                    } else {
-                        setPeriod(periodStr);
-                        setTimeLeft(diff);
-                    }
-                }
+                    return {
+                        ...prev,
+                        [type_]: { ...prev[type_], period: periodStr, timeLeft, result: null }
+                    };
+                });
+                return;
             }
 
-            // Result message (new format with game type)
-            // Format: "20250630215319 30S 2"
-            const resultRegex = /^(\d{14}) (30S|1M|3M|5M) (\d+)$/;
-            const resultMatch = msg.match(resultRegex);
-
+            // Result message: "20250701194926 30S 1"
+            const resultMatch = msg.match(/^(\d{14}) (30S|1M|3M|5M) (\d+)$/);
             if (resultMatch) {
-                const periodStr = resultMatch[1];
-                const type_ = resultMatch[2];
-                const numberStr = resultMatch[3];
+                const [, periodStr, type_, numberStr] = resultMatch;
                 const number = parseInt(numberStr, 10);
                 const { color, bigSmall } = getColorAndBigSmall(number);
-                const result = {
-                    period: periodStr,
-                    type: type_,
-                    number,
-                    color,
-                    bigSmall
-                };
+                const result = { period: periodStr, number, color, bigSmall };
 
-                // Only show result if it's for the current game type
-                const typeMap = {
-                    'Win Go 30Sec': '30S',
-                    'Win Go 1Min': '1M',
-                    'Win Go 3Min': '3M',
-                    'Win Go 5Min': '5M',
-                };
-                const currentType = typeMap[gameType.label];
-
-                if (type_ === currentType) {
-                    setRoundResult(result);
-                    setShowResult(true);
-
-                    // Use functional updates to avoid stale closures
-                    setResultHistory(prev => {
-                        if (prev.find(r => r.period === result.period)) return prev;
-                        return [{ ...result }, ...prev.slice(0, 19)];
-                    });
-
-                    setBetHistory(prev =>
-                        prev.map(bet =>
-                            bet.period === result.period ? { ...bet, result } : bet
-                        )
-                    );
-
-                    setTimeout(() => {
-                        setShowResult(false);
-                        setShowBetModal(false);
-                    }, 1250); // Show result for only 1.25 seconds
-                }
+                setPeriods(prev => ({
+                    ...prev,
+                    [type_]: { ...prev[type_], result }
+                }));
             }
         };
 
-        ws.onerror = (err) => {
-            setWsReady(false);
-            console.error('WebSocket error:', err);
+        ws.onerror = () => setWsReady(false);
+        ws.onclose = () => setWsReady(false);
+
+        return () => {
+            ws.close();
+            Object.values(timerRefs.current).forEach(clearInterval);
         };
+    }, []);
 
-        ws.onclose = () => {
-            setWsReady(false);
-            console.log('WebSocket closed');
-        };
+    // Show timer and result for only the selected game type
+    const currentType = TYPE_MAP[gameType.label];
+    const { period: currentPeriod, timeLeft: currentTimeLeft, result: currentResult } = periods[currentType] || {};
 
-        return () => ws.close();
-    }, []); // Add dependencies to re-establish when game type changes
-
-    // 3. Timer logic: only restart timer when period changes
-  // Replace your period-based timer effect with this one
-useEffect(() => {
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-    timerIntervalRef.current = setInterval(() => {
-        // Get current game type
-        const typeMap = {
-            'Win Go 30Sec': '30S',
-            'Win Go 1Min': '1M',
-            'Win Go 3Min': '3M',
-            'Win Go 5Min': '5M',
-        };
-        const type_ = typeMap[gameType.label];
-        const info = latestPeriods[type_];
-        
-        if (info) {
-            const { periodStr, datetimeStr } = info;
-            const startTime = new Date(datetimeStr);
-            const now = new Date();
-            const elapsed = Math.floor((now - startTime) / 1000);
-            const duration = gameType.duration;
-            let diff = duration - elapsed;
-            if (diff < 0) diff = 0;
-            if (diff > duration) diff = duration;
-            
-            setPeriod(periodStr);
-            setTimeLeft(diff);
-        }
-    }, 1000);
-
-    return () => clearInterval(timerIntervalRef.current);
-}, [gameType, latestPeriods]);
-
-    // 4. Handle next period info after result modal closes
+    // When switching game type, update UI to show correct timer/result
     useEffect(() => {
-        if (!showResult && nextPeriodInfo) {
-            setPeriod(nextPeriodInfo.periodStr);
-            setTimeLeft(nextPeriodInfo.diff);
-            setNextPeriodInfo(null);
-        }
-    }, [showResult, nextPeriodInfo]);
+        setPeriod(currentPeriod || '');
+        setTimeLeft(currentTimeLeft || 0);
+        setRoundResult(currentResult || null);
+        setShowResult(!!currentResult);
+    }, [currentType, currentPeriod, currentTimeLeft, currentResult]);
 
-    // 5. Use useCallback for handlers passed to children (optional, for large lists)
-    // Update your handleGameTypeChange function
-    const handleGameTypeChange = useCallback((type) => {
+    // When a result is shown, hide it after 1.25s and clear from state
+    useEffect(() => {
+        if (showResult && currentResult) {
+            const t = setTimeout(() => {
+                setShowResult(false);
+                setRoundResult(null);
+                setPeriods(prev => ({
+                    ...prev,
+                    [currentType]: { ...prev[currentType], result: null }
+                }));
+            }, 1250);
+            return () => clearTimeout(t);
+        }
+    }, [showResult, currentResult, currentType]);
+
+    // Handler for switching game type
+    const handleGameTypeChange = (type) => {
         setGameType(type);
-        setShowBetModal(false);
-        setSelectedColor(null);
-        setSelectedNumber(null);
-        setSelectedBigSmall(null);
-        setQuantity(1);
-        setAgree(false);
-        setShowResult(false);
-        setRoundResult(null);
+    };
 
-        // Update timer based on latest period info for this game type
-        const typeMap = {
-            'Win Go 30Sec': '30S',
-            'Win Go 1Min': '1M',
-            'Win Go 3Min': '3M',
-            'Win Go 5Min': '5M',
-        };
-        const type_ = typeMap[type.label];
-        const info = latestPeriods[type_];
 
-        if (info) {
-            const { periodStr, datetimeStr } = info;
-            const startTime = new Date(datetimeStr);
-            const now = new Date();
-            const elapsed = Math.floor((now - startTime) / 1000);
-            const duration = type.duration;
-            let diff = duration - elapsed;
-            if (diff < 0) diff = 0;
-            if (diff > duration) diff = duration;
 
-            setPeriod(periodStr);
-            setTimeLeft(diff);
-        }
-    }, [latestPeriods]);
 
     const handleColorClick = (color) => {
         if (timeLeft > 5 && !showResult) {
@@ -779,7 +671,6 @@ useEffect(() => {
                                         alt={res.number}
                                         className="w-7 h-7 object-contain pointer-events-none select-none"
                                         draggable={false}
-                                        style={{ display: 'block' }}
                                     />
                                 </div>
                             ))}
@@ -1138,7 +1029,7 @@ useEffect(() => {
                         </div>
                         <div className="bg-[#2B3270] rounded-b-lg">
                             {resultHistory.slice(0, 10).map((res, idx) => (
-                                <div key={idx} className="grid grid-cols-12 gap-1 px-2 py-2 border-b last:border-b-0 items-center">
+                                <div key={res.period} className="grid grid-cols-12 gap-1 px-2 py-2 border-b last:border-b-0 items-center">
                                     {/* Period - more space, smaller font, truncate if needed */}
                                     <div className="col-span-5 text-white text-left truncate pl-2">
                                         <span className="text-xs md:text-base">{res.period}</span>
@@ -1194,9 +1085,7 @@ useEffect(() => {
                                     let displayType = '';
                                     let displayValue = '';
                                     let colorClass = '';
-                                    if (
-                                        ["green", "red", "violet"].includes(prediction)
-                                    ) {
+                                    if (["green", "red", "violet"].includes(prediction)) {
                                         displayType = "color";
                                         displayValue = prediction.charAt(0).toUpperCase();
                                         colorClass =
@@ -1205,9 +1094,7 @@ useEffect(() => {
                                                 : prediction === "red"
                                                     ? "bg-red-500"
                                                     : "bg-purple-500";
-                                    } else if (
-                                        ["small", "big"].includes(prediction)
-                                    ) {
+                                    } else if (["small", "big"].includes(prediction)) {
                                         displayType = "bigSmall";
                                         displayValue = prediction === "big" ? "B" : "S";
                                         colorClass =
@@ -1243,19 +1130,6 @@ useEffect(() => {
 
                                     // Find result for this bet
                                     const res = resultHistory.find((r) => r.period === period);
-                                    let win = false;
-                                    if (res && status === "settled") {
-                                        if (
-                                            (displayType === "color" && prediction === res.color) ||
-                                            (displayType === "number" &&
-                                                displayValue !== "?" &&
-                                                Number(displayValue) === res.number) ||
-                                            (displayType === "bigSmall" &&
-                                                prediction === res.bigSmall.toLowerCase())
-                                        ) {
-                                            win = profit > 0;
-                                        }
-                                    }
 
                                     // Use placed_at for date/time display
                                     const placedAt = bet.placed_at;
@@ -1301,9 +1175,6 @@ useEffect(() => {
                                                     </div>
                                                     <div className="text-white">
                                                         <div className="font-medium text-lg">{period}</div>
-                                                        <div className="text-blue-200 text-sm">
-                                                            {dateStr} {timeStr}
-                                                        </div>
                                                     </div>
                                                 </div>
                                                 {/* Right side - Status and Amount */}
@@ -1317,6 +1188,7 @@ useEffect(() => {
                                                                     : "bg-red-500 text-white"
                                                                     }`}
                                                             >
+
                                                                 {profit > 0 ? "Win" : "Fail"}
                                                             </span>
                                                         ) : (
