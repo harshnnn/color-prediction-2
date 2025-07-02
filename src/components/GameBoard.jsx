@@ -235,7 +235,7 @@ function GameBoard() {
         if (selectedColor) return selectedColor;
         if (selectedBigSmall) return selectedBigSmall.toLowerCase();
         if (selectedNumber !== null && selectedNumber !== undefined) {
-            const numWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+            const numWords = ["0","1","2","3","4","5","6","7","8","9"];
             return numWords[selectedNumber];
         }
         return "";
