@@ -7,14 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Deposit from './Deposit';
 import Withdrawal from './Withdrawal';
 import Navbar from './Navbar';
-
-
-const GAME_TYPES = [
-    { label: 'Win Go 30Sec', duration: 30 },
-    { label: 'Win Go 1Min', duration: 60 },
-    { label: 'Win Go 3Min', duration: 180 },
-    { label: 'Win Go 5Min', duration: 300 },
-];
+import useGamePeriods, { GAME_TYPES, getColorAndBigSmall, TYPE_MAP } from './useGamePeriods';
 
 const COLOR_LABELS = {
     green: 'Green',
@@ -41,26 +34,6 @@ const NUMBER_COLORS = {
     9: 'green',
 };
 
-// Move this outside the component - defined once
-const TYPE_MAP = {
-    'Win Go 30Sec': '30S',
-    'Win Go 1Min': '1M',
-    'Win Go 3Min': '3M',
-    'Win Go 5Min': '5M',
-};
-
-// Helper to get color and big/small from number
-function getColorAndBigSmall(number) {
-    let color = '';
-    if (number === 0 || number === 5) color = 'violet';
-    else if (number % 2 === 1) color = 'green';
-    else color = 'red';
-    const bigSmall = number < 5 ? 'Small' : 'Big';
-    return { color, bigSmall };
-}
-
-
-
 function GameBoard() {
     const { logout } = useAuth();
     const navigate = useNavigate();
@@ -72,34 +45,30 @@ function GameBoard() {
     const [selectedBigSmall, setSelectedBigSmall] = useState(null);
     const [quantity, setQuantity] = useState(1);
     const [agree, setAgree] = useState(false);
-    const [balance] = useState(1000);
-    const [betHistory, setBetHistory] = useState([]);
     const [period, setPeriod] = useState('');
     const [timeLeft, setTimeLeft] = useState(0);
-    const timerIntervalRef = useRef(null);
-    const [resultHistory, setResultHistory] = useState([]);
     const [roundResult, setRoundResult] = useState(null);
     const [showHowToPlay, setShowHowToPlay] = useState(false);
+    const [pendingResult, setPendingResult] = useState(null);
     const [showResult, setShowResult] = useState(false);
     const [activeTab, setActiveTab] = useState('history');
-    const [nextPeriodInfo, setNextPeriodInfo] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [wsReady, setWsReady] = useState(false);
     const [wsTimeout, setWsTimeout] = useState(false);
     const [balancePerBet, setBalancePerBet] = useState(1);
     const [betPlacing, setBetPlacing] = useState(false);
     const [betPlaceError, setBetPlaceError] = useState(null);
-    // Add these state variables for API bets (move to top-level with other useState)
     const [apiBets, setApiBets] = useState([]);
     const [betsLoading, setBetsLoading] = useState(false);
     const [betsError, setBetsError] = useState(null);
-    const [latestPeriods, setLatestPeriods] = useState({
-        '30S': null,
-        '1M': null,
-        '3M': null,
-        '5M': null
+    const { periods, wsReady } = useGamePeriods();
+
+    // Only used for bets API
+    const [resultHistories, setResultHistories] = useState({
+        '30S': [],
+        '1M': [],
+        '3M': [],
+        '5M': [],
     });
-    const periodEndTimeRef = useRef(null);
 
     // Helper to refresh access token using refresh token
     const tryRefreshToken = useCallback(async () => {
@@ -112,7 +81,6 @@ function GameBoard() {
                 body: JSON.stringify({ refresh_token: refreshToken }),
             });
             if (!res.ok) {
-                // Remove tokens if refresh fails
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 navigate('/login', { replace: true });
@@ -157,16 +125,13 @@ function GameBoard() {
         return null;
     }, [tryRefreshToken]);
 
-    // 1. Fetch result history only once on mount
-    // Replace the existing result history fetch useEffect with this:
+    // Fetch result history from API on mount and gameType change
     useEffect(() => {
-        // Map gameType.label to type_ param for API
         const type_ = TYPE_MAP[gameType.label] || '30S';
-
         const fetchHistory = async () => {
             try {
                 setLoading(true);
-                const res = await fetch(`https://color-prediction-742i.onrender.com/results?type_=${type_}`);
+                const res = await fetch(`https://color-prediction-742i.onrender.com/results?type_=${type_}&limit=10`);
                 const data = await res.json();
                 const mapped = data
                     .filter(r => r.number !== -1)
@@ -174,7 +139,10 @@ function GameBoard() {
                         ...r,
                         ...getColorAndBigSmall(r.number)
                     }));
-                setResultHistory(mapped);
+                setResultHistories(prev => ({
+                    ...prev,
+                    [type_]: mapped
+                }));
             } catch (e) {
                 // handle error
             } finally {
@@ -184,110 +152,9 @@ function GameBoard() {
         fetchHistory();
     }, [gameType]);
 
-    function parsePeriodToUTCDate(period) {
-        const year = period.slice(0, 4);
-        const month = period.slice(4, 6);
-        const day = period.slice(6, 8);
-        const hour = period.slice(8, 10);
-        const min = period.slice(10, 12);
-        const sec = period.slice(12, 14);
-        // Parse as UTC
-        return new Date(Date.UTC(
-            Number(year),
-            Number(month) -1,
-            Number(day),
-            Number(hour),
-            Number(min),
-            Number(sec)
-        ));
-    }
-
-
-    // --- WebSocket & Timer Logic ---
-
-    const [periods, setPeriods] = useState({
-        '30S': { period: '', endTime: null, timeLeft: 0, result: null },
-        '1M': { period: '', endTime: null, timeLeft: 0, result: null },
-        '3M': { period: '', endTime: null, timeLeft: 0, result: null },
-        '5M': { period: '', endTime: null, timeLeft: 0, result: null },
-    });
-    const timerRefs = useRef({});
-
-    useEffect(() => {
-        const ws = new WebSocket('wss://color-prediction-742i.onrender.com/ws');
-        ws.onopen = () => setWsReady(true);
-
-        ws.onmessage = (event) => {
-            const msg = event.data.trim();
-
-            // Period message: "20250701194956 30S 2025-07-01 19:49:56.678930+05:30"
-            const periodMatch = msg.match(/^(\d{14}) (30S|1M|3M|5M) (\d{4}-\d{2}-\d{2}.+)$/);
-            if (periodMatch) {
-                const [, periodStr, type_] = periodMatch;
-
-                // Use your helper to get the period end time (UTC)
-                const periodEndTime = parsePeriodToUTCDate(periodStr);
-
-                // Get the duration for this game type
-                const duration = GAME_TYPES.find(g => TYPE_MAP[g.label] === type_).duration;
-
-                setPeriods(prev => {
-                    // Clear previous timer for this type
-                    if (timerRefs.current[type_]) clearInterval(timerRefs.current[type_]);
-                    // Calculate the real time left, always positive and within [0, duration]
-                    const now = new Date();
-                    let diff = Math.floor((periodEndTime - now) / 1000);
-                    let timeLeft = ((diff % duration) + duration) % duration;
-                    // Start new timer for this type
-                    timerRefs.current[type_] = setInterval(() => {
-                        setPeriods(p => {
-                            const nowTick = new Date();
-                            let diffTick = Math.floor((periodEndTime - nowTick) / 1000);
-                            let timeLeftTick = ((diffTick % duration) + duration) % duration;
-                            return {
-                                ...p,
-                                [type_]: { ...p[type_], timeLeft: timeLeftTick }
-                            };
-                        });
-                    }, 1000);
-
-                    return {
-                        ...prev,
-                        [type_]: { ...prev[type_], period: periodStr, timeLeft, result: null }
-                    };
-                });
-                return;
-            }
-
-            // Result message: "20250701194926 30S 1"
-            const resultMatch = msg.match(/^(\d{14}) (30S|1M|3M|5M) (\d+)$/);
-            if (resultMatch) {
-                const [, periodStr, type_, numberStr] = resultMatch;
-                const number = parseInt(numberStr, 10);
-                const { color, bigSmall } = getColorAndBigSmall(number);
-                const result = { period: periodStr, number, color, bigSmall };
-
-                setPeriods(prev => ({
-                    ...prev,
-                    [type_]: { ...prev[type_], result }
-                }));
-            }
-        };
-
-        ws.onerror = () => setWsReady(false);
-        ws.onclose = () => setWsReady(false);
-
-        return () => {
-            ws.close();
-            Object.values(timerRefs.current).forEach(clearInterval);
-        };
-    }, []);
-
-    // Show timer and result for only the selected game type
     const currentType = TYPE_MAP[gameType.label];
     const { period: currentPeriod, timeLeft: currentTimeLeft, result: currentResult } = periods[currentType] || {};
 
-    // When switching game type, update UI to show correct timer/result
     useEffect(() => {
         setPeriod(currentPeriod || '');
         setTimeLeft(currentTimeLeft || 0);
@@ -295,12 +162,22 @@ function GameBoard() {
         setShowResult(!!currentResult);
     }, [currentType, currentPeriod, currentTimeLeft, currentResult]);
 
-    // When a result is shown, hide it after 1.25s and clear from state
     useEffect(() => {
-        if (showResult && currentResult) {
+        if (currentResult) {
+            setPendingResult(currentResult);
+        }
+    }, [currentResult, currentType]);
+
+    useEffect(() => {
+        if (timeLeft === 0 && pendingResult) {
+            setShowResult(true);
+            setRoundResult(pendingResult);
+            // Hide result after 1.25s and clear pendingResult
             const t = setTimeout(() => {
                 setShowResult(false);
                 setRoundResult(null);
+                setPendingResult(null);
+                // Optionally clear the result from periods as well:
                 setPeriods(prev => ({
                     ...prev,
                     [currentType]: { ...prev[currentType], result: null }
@@ -308,15 +185,15 @@ function GameBoard() {
             }, 1250);
             return () => clearTimeout(t);
         }
-    }, [showResult, currentResult, currentType]);
+        // Hide result if timer is not 0
+        if (timeLeft > 0) {
+            setShowResult(false);
+            setRoundResult(null);
+        }
+    }, [timeLeft, pendingResult, currentType]);
 
     // Handler for switching game type
-    const handleGameTypeChange = (type) => {
-        setGameType(type);
-    };
-
-
-
+    const handleGameTypeChange = (type) => setGameType(type);
 
     const handleColorClick = (color) => {
         if (timeLeft > 5 && !showResult) {
@@ -351,20 +228,13 @@ function GameBoard() {
         }
     };
 
-    const handleQuantity = (val) => {
-        setQuantity((prev) => Math.max(1, prev + val));
-    };
+    const handleQuantity = (val) => setQuantity((prev) => Math.max(1, prev + val));
+    const handleSetQuantity = (val) => setQuantity(val);
 
-    const handleSetQuantity = (val) => {
-        setQuantity(val);
-    };
-
-    // Helper to get prediction string for API
     const getPredictionString = () => {
         if (selectedColor) return selectedColor;
         if (selectedBigSmall) return selectedBigSmall.toLowerCase();
         if (selectedNumber !== null && selectedNumber !== undefined) {
-            // Map 0-9 to "zero", "one", ..., "nine"
             const numWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
             return numWords[selectedNumber];
         }
@@ -402,7 +272,6 @@ function GameBoard() {
             });
             const data = await res.json();
             if (!res.ok) {
-                // Show backend error in toast
                 const backendMsg = data.message || data.detail || "Failed to place bet.";
                 setBetPlaceError(backendMsg);
                 toast.error(`Bet failed: ${backendMsg}`, { position: "top-center" });
@@ -460,7 +329,7 @@ function GameBoard() {
         } finally {
             setBetsLoading(false);
         }
-    }, []);
+    }, [getValidAccessToken]);
 
     // Fetch bets when "My Bets" tab is selected
     useEffect(() => {
@@ -474,16 +343,35 @@ function GameBoard() {
         if (activeTab === 'mybets' && period) {
             fetchApiBets();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [period]);
+    }, [period, activeTab, fetchApiBets]);
 
     // Fetch bets after placing a bet (if on mybets tab)
     useEffect(() => {
         if (!betPlacing && activeTab === 'mybets' && showBetModal === false) {
             fetchApiBets();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [betPlacing, showBetModal]);
+    }, [betPlacing, showBetModal, activeTab, fetchApiBets]);
+
+    // Live update: add new result to history for current gameType
+    useEffect(() => {
+        // Only update when timer ends and result is for the current period
+        if (
+            timeLeft === 0 &&
+            pendingResult 
+        ) {
+            setResultHistories(prev => {
+                const prevArr = prev[currentType] || [];
+                // Avoid duplicates
+                if (prevArr.length > 0 && prevArr[0].period === pendingResult.period) return prev;
+                // Add new result to the top, keep only last 10
+                return {
+                    ...prev,
+                    [currentType]: [pendingResult, ...prevArr].slice(0, 10)
+                };
+            });
+        }
+        // eslint-disable-next-line
+    }, [timeLeft, pendingResult, period, currentType]);
 
     if (loading || !wsReady) {
         return (
@@ -512,7 +400,7 @@ function GameBoard() {
             <Navbar />
 
             {/* Overlay for last 5 seconds */}
-            {timeLeft <= 5 && !showResult && (
+            {timeLeft <= 5 && timeLeft > 0  &&(
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent transition-all">
                     <div className="flex gap-4">
                         <div className="bg-blue-700 rounded-xl w-28 h-40 flex items-center justify-center">
@@ -660,7 +548,7 @@ function GameBoard() {
                         </div>
                         {/* Previous Results - Ball style */}
                         <div className="flex justify-center sm:justify-start gap-1 mb-1">
-                            {resultHistory.slice(0, 5).map((res, idx) => (
+                            {(resultHistories[currentType] || []).slice(0, 5).map((res, idx) => (
                                 <div
                                     key={idx}
                                     className="w-7 h-7 flex items-center justify-center"
@@ -1028,7 +916,7 @@ function GameBoard() {
                             <div className="col-span-2 text-center">Color</div>
                         </div>
                         <div className="bg-[#2B3270] rounded-b-lg">
-                            {resultHistory.slice(0, 10).map((res, idx) => (
+                            {(resultHistories[currentType] || []).slice(0, 10).map((res, idx) => (
                                 <div key={res.period} className="grid grid-cols-12 gap-1 px-2 py-2 border-b last:border-b-0 items-center">
                                     {/* Period - more space, smaller font, truncate if needed */}
                                     <div className="col-span-5 text-white text-left truncate pl-2">
@@ -1129,10 +1017,10 @@ function GameBoard() {
                                     }
 
                                     // Find result for this bet
-                                    const res = resultHistory.find((r) => r.period === period);
-
+                                    const res = (resultHistories[currentType] || []).find((r) => r.period === period);
                                     // Use placed_at for date/time display
                                     const placedAt = bet.placed_at;
+                                    // Use placed_at for date/time display
                                     const dateObj = placedAt ? new Date(placedAt) : null;
                                     const dateStr = dateObj
                                         ? dateObj.toLocaleDateString("en-GB", {
