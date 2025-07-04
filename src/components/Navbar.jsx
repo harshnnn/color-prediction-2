@@ -209,7 +209,7 @@ const Navbar = () => {
   return (
     <>
       {/* Responsive Navbar */}
-      <nav className="w-full">
+      <nav className="w-full mb-0 pb-0">
         {/* Mobile: Top Row */}
         <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px] sm:hidden">
           {/* Logo */}
@@ -249,7 +249,7 @@ const Navbar = () => {
           </button>
         </div>
         {/* Desktop/Tablet: Original Navbar */}
-        <div className="hidden sm:flex w-full flex-wrap items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg mb-4 min-h-[54px]">
+        <div className="hidden sm:flex w-full flex-wrap items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px]">
           {/* Logo (left) */}
           <div className="flex items-center gap-2">
             <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>

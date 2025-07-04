@@ -235,7 +235,7 @@ function GameBoard() {
         if (selectedColor) return selectedColor;
         if (selectedBigSmall) return selectedBigSmall.toLowerCase();
         if (selectedNumber !== null && selectedNumber !== undefined) {
-            const numWords = ["0","1","2","3","4","5","6","7","8","9"];
+            const numWords = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
             return numWords[selectedNumber];
         }
         return "";
@@ -357,7 +357,7 @@ function GameBoard() {
         // Only update when timer ends and result is for the current period
         if (
             timeLeft === 0 &&
-            pendingResult 
+            pendingResult
         ) {
             setResultHistories(prev => {
                 const prevArr = prev[currentType] || [];
@@ -393,14 +393,14 @@ function GameBoard() {
 
     // Main wrapper with improved background gradient
     return (
-        <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen  py-0">
+        <div className="relative flex flex-col items-center min-w-[340px] bg-gradient-to-b from-[#111827] to-[#1f2937] min-h-screen  py-0 mt-0">
             <ToastContainer />
 
             {/* Navbar */}
             <Navbar />
 
             {/* Overlay for last 5 seconds */}
-            {timeLeft <= 5 && timeLeft > 0  &&(
+            {timeLeft <= 5 && timeLeft > 0 && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent transition-all">
                     <div className="flex gap-4">
                         <div className="bg-blue-700 rounded-xl w-28 h-40 flex items-center justify-center">
@@ -461,59 +461,62 @@ function GameBoard() {
             )}
 
             {/* Main UI, faded when last 5 seconds or result */}
-            <div className={timeLeft <= 5 || showResult ? "pointer-events-none opacity-30 transition-all bg-[#22275b] p-2" : "bg-[#22275b] p-2"}>
+            <div className={timeLeft <= 5 || showResult ? "pointer-events-none opacity-30 transition-all bg-[#22275b] p-2 pt-5" : "bg-[#22275b] p-2 pt-5"}>
                 {/* Game Type Selection - Enhanced with animations */}
-                <div className="flex gap-0 mb-6 w-full justify-center">
-                    {GAME_TYPES.map((type, idx) => {
-                        // Determine border radius for each button
-                        let borderRadiusStyle = {};
-                        if (gameType.label === type.label) {
-                            // If selected, all corners 10px
-                            borderRadiusStyle = {
-                                borderRadius: '10px',
-                            };
-                        } else if (idx === 0) {
-                            borderRadiusStyle = {
-                                borderTopLeftRadius: '10px',
-                                borderBottomLeftRadius: '10px',
-                                borderTopRightRadius: '0px',
-                                borderBottomRightRadius: '0px',
-                            };
-                        } else if (idx === GAME_TYPES.length - 1) {
-                            borderRadiusStyle = {
-                                borderTopLeftRadius: '0px',
-                                borderBottomLeftRadius: '0px',
-                                borderTopRightRadius: '10px',
-                                borderBottomRightRadius: '10px',
-                            };
-                        } else {
-                            borderRadiusStyle = {
-                                borderRadius: '0px',
-                            };
-                        }
-                        return (
-                            <button
-                                key={type.label}
-                                className={`flex flex-col items-center justify-center w-23 h-23 font-sm transition-all transform hover:scale-105 ${gameType.label === type.label
-                                    ? '!bg-gradient-to-b !from-[#2aaaf3] !to-[#2979f2] text-white shadow-lg scale-101 border-1 border-blue-300'
-                                    : 'bg-[#37499e] text-gray-300 hover:bg-[#3e379e] border border-gray-700'
-                                    }`}
-                                style={borderRadiusStyle}
-                                onClick={() => handleGameTypeChange(type)}
-                            >
-                                <div className="text-xl mb-1">🕐</div>
-                                <div className="text-xs text-center leading-tight">
-                                    <div>Win Go</div>
-                                    <div className="font-normal">
-                                        {type.label.includes('30Sec') ? '30Sec' :
-                                            type.label.includes('1Min') ? '1Min' :
-                                                type.label.includes('3Min') ? '3Min' : '5Min'}
+                <div className='bg-[#37499e] p-0 m-0'>
+                    <div className="flex gap-0 mb-6 w-full  justify-center">
+                        {GAME_TYPES.map((type, idx) => {
+                            // Determine border radius for each button
+                            let borderRadiusStyle = {};
+                            if (gameType.label === type.label) {
+                                // If selected, all corners 10px
+                                borderRadiusStyle = {
+                                    borderRadius: '10px',
+                                };
+                            } else if (idx === 0) {
+                                borderRadiusStyle = {
+                                    borderTopLeftRadius: '10px',
+                                    borderBottomLeftRadius: '10px',
+                                    borderTopRightRadius: '0px',
+                                    borderBottomRightRadius: '0px',
+                                };
+                            } else if (idx === GAME_TYPES.length - 1) {
+                                borderRadiusStyle = {
+                                    borderTopLeftRadius: '0px',
+                                    borderBottomLeftRadius: '0px',
+                                    borderTopRightRadius: '10px',
+                                    borderBottomRightRadius: '10px',
+                                };
+                            } else {
+                                borderRadiusStyle = {
+                                    borderRadius: '0px',
+                                };
+                            }
+                            return (
+                                <button
+                                    key={type.label}
+                                    className={`flex flex-col items-center justify-center w-23 h-23 font-sm transition-all transform hover:scale-105 ${gameType.label === type.label
+                                        ? '!bg-gradient-to-b !from-[#2aaaf3] !to-[#2979f2] text-white shadow-lg scale-101 border-1 border-blue-300'
+                                        : 'bg-[#37499e] text-gray-300 hover:bg-[#3e379e] border border-gray-700'
+                                        }`}
+                                    style={borderRadiusStyle}
+                                    onClick={() => handleGameTypeChange(type)}
+                                >
+                                    <div className="text-xl mb-1">🕐</div>
+                                    <div className="text-xs text-center leading-tight">
+                                        <div>Win Go</div>
+                                        <div className="font-normal">
+                                            {type.label.includes('30Sec') ? '30Sec' :
+                                                type.label.includes('1Min') ? '1Min' :
+                                                    type.label.includes('3Min') ? '3Min' : '5Min'}
+                                        </div>
                                     </div>
-                                </div>
-                            </button>
-                        );
-                    })}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
+
 
                 {/* Timer and Period Section - Ticket style, smaller & responsive, always show divider & cutouts */}
                 <div
@@ -576,8 +579,8 @@ function GameBoard() {
                                 <div
                                     key={idx}
                                     className={`${char === ':'
-                                        ? 'flex items-center text-base sm:text-xl font-bold text-white'
-                                        : 'bg-[#181f3a] text-white rounded-lg w-6 h-7 sm:w-8 sm:h-9 flex items-center justify-center text-base sm:text-xl font-bold shadow'
+                                        ? 'flex items-center text-base sm:text-xl font-md text-white'
+                                        : 'bg-[#181f3a] text-white rounded-lg w-6 h-7 sm:w-8 sm:h-9 flex items-center justify-center text-base sm:text-xl font-md shadow'
                                         }`}
                                 >
                                     {char}
@@ -642,119 +645,122 @@ function GameBoard() {
                         </div>
                     </div>
                 )}
-
-                {/* Color Buttons - Enhanced with glassmorphism */}
-                <div className="flex gap-3 mb-5 w-full justify-center bg-[#28306a] px-2 py-2 rounded-xl">
-                    <button
-                        className="bg-[#22c55e] text-white w-full max-w-[136px] h-[45px] flex items-center justify-center font-normal text-xl"
-                        style={{
-                            borderTopLeftRadius: '0px',
-                            borderBottomLeftRadius: '20px',
-                            borderTopRightRadius: '20px',
-                            borderBottomRightRadius: '0px',
-                            background: '#22c55e',
-                            boxShadow: 'none',
-                            border: 'none',
-                            padding: 0,
-                            minWidth: 0,
-                        }}
-                        onClick={() => handleColorClick('green')}
-                    >
-                        Green
-                    </button>
-                    <button
-                        className="bg-[#a259e6] text-white w-full max-w-[130px] h-[45px] py-3 rounded-xl font-medium text-lg transition-all hover:brightness-110"
-                        style={{ boxShadow: 'none', border: 'none' }}
-                        onClick={() => handleColorClick('violet')}
-                    >
-                        Violet
-                    </button>
-                    <button
-                        className="bg-[#e04a4a] text-white w-full max-w-[136px] h-[45px] flex items-center justify-center font-normal text-xl"
-                        style={{
-                            borderTopLeftRadius: '20px',
-                            borderBottomLeftRadius: '0px',
-                            borderTopRightRadius: '0px',
-                            borderBottomRightRadius: '20px',
-                            background: '#e04a4a',
-                            boxShadow: 'none',
-                            border: 'none',
-                            padding: 0,
-                            minWidth: 0,
-                        }}
-                        onClick={() => handleColorClick('red')}
-                    >
-                        Red
-                    </button>
-                </div>
-
-                {/* Number Buttons - Enhanced with animations */}
-                <div className="flex flex-col gap-3 mb-5 w-full justify-center bg-[#1E2A44] p-2">
-                    {/* First row: 0-4 */}
-                    <div className="flex gap-3 justify-center">
-                        {[0, 1, 2, 3, 4].map((num) => (
-                            <button
-                                key={num}
-                                className="w-14 h-14 rounded-full p-0 border-none bg-transparent shadow-none transition-all transform hover:scale-110"
-                                onClick={() => handleNumberClick(num)}
-                                style={{ outline: 'none' }}
-                            >
-                                <img
-                                    src={`/buttons/${num}btn.png`}
-                                    alt={num}
-                                    className="w-16 h-16 object-contain pointer-events-none select-none"
-                                    draggable={false}
-                                />
-                            </button>
-                        ))}
+                {/* Color Buttons, Number buttons, Big Small buttons */}
+                <div className=' bg-[#28306a] p-2 mb-4'>
+                    {/* Color Buttons - Enhanced with glassmorphism */}
+                    <div className="flex gap-3 mb-3 w-full justify-center px-0  rounded-xl">
+                        <button
+                            className="bg-[#22c55e] text-white w-full max-w-[136px] h-[45px] flex items-center justify-center font-normal text-md hover:brightness-110 hover:scale-102"
+                            style={{
+                                borderTopLeftRadius: '0px',
+                                borderBottomLeftRadius: '20px',
+                                borderTopRightRadius: '20px',
+                                borderBottomRightRadius: '0px',
+                                background: '#22c55e',
+                                boxShadow: 'none',
+                                border: 'none',
+                                padding: 0,
+                                minWidth: 0,
+                            }}
+                            onClick={() => handleColorClick('green')}
+                        >
+                            Green
+                        </button>
+                        <button
+                            className="bg-[#a259e6] text-white w-full max-w-[130px] h-[45px] py-3 rounded-xl font-sm text-md transition-all hover:brightness-110 hover:scale-102"
+                            style={{ boxShadow: 'none', border: 'none' }}
+                            onClick={() => handleColorClick('violet')}
+                        >
+                            Violet
+                        </button>
+                        <button
+                            className="bg-[#e04a4a] text-white w-full max-w-[136px] h-[45px] flex items-center justify-center font-sm text-md hover:brightness-110 hover:scale-102"
+                            style={{
+                                borderTopLeftRadius: '20px',
+                                borderBottomLeftRadius: '0px',
+                                borderTopRightRadius: '0px',
+                                borderBottomRightRadius: '20px',
+                                background: '#e04a4a',
+                                boxShadow: 'none',
+                                border: 'none',
+                                padding: 0,
+                                minWidth: 0,
+                            }}
+                            onClick={() => handleColorClick('red')}
+                        >
+                            Red
+                        </button>
                     </div>
-                    {/* Second row: 5-9 */}
-                    <div className="flex gap-3 justify-center">
-                        {[5, 6, 7, 8, 9].map((num) => (
-                            <button
-                                key={num}
-                                className="w-14 h-14 rounded-full p-0 border-none bg-transparent shadow-none transition-all transform hover:scale-110"
-                                onClick={() => handleNumberClick(num)}
-                                style={{ outline: 'none' }}
-                            >
-                                <img
-                                    src={`/buttons/${num}btn.png`}
-                                    alt={num}
-                                    className="w-16 h-16 object-contain pointer-events-none select-none"
-                                    draggable={false}
-                                />
-                            </button>
-                        ))}
+
+                    {/* Number Buttons - Enhanced with animations */}
+                    <div className="flex flex-col gap-3 mb-3 w-full justify-center bg-[#1E2A44] p-2 rounded-xl">
+                        {/* First row: 0-4 */}
+                        <div className="flex gap-3 justify-center">
+                            {[0, 1, 2, 3, 4].map((num) => (
+                                <button
+                                    key={num}
+                                    className="w-13 h-13 rounded-full p-0 border-none bg-transparent shadow-none transition-all transform hover:scale-110"
+                                    onClick={() => handleNumberClick(num)}
+                                    style={{ outline: 'none' }}
+                                >
+                                    <img
+                                        src={`/buttons/${num}btn.png`}
+                                        alt={num}
+                                        className="w-16 h-16 object-contain pointer-events-none select-none"
+                                        draggable={false}
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                        {/* Second row: 5-9 */}
+                        <div className="flex gap-3 justify-center">
+                            {[5, 6, 7, 8, 9].map((num) => (
+                                <button
+                                    key={num}
+                                    className="w-13 h-13 rounded-full p-0 mb-2 border-none bg-transparent shadow-none transition-all transform hover:scale-110"
+                                    onClick={() => handleNumberClick(num)}
+                                    style={{ outline: 'none' }}
+                                >
+                                    <img
+                                        src={`/buttons/${num}btn.png`}
+                                        alt={num}
+                                        className="w-16 h-16 object-contain pointer-events-none select-none"
+                                        draggable={false}
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Big/Small Buttons - Enhanced design */}
+                    <div className="flex gap-0 mb-1 w-full max-w-md mx-auto justify-center">
+                        <button
+                            className="bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white w-full px-5 py-1.5 rounded-sm font-sm shadow-lg transform hover:scale-102 transition-all"
+                            style={{
+                                borderTopLeftRadius: '20px',
+                                borderBottomLeftRadius: '20px',
+                                borderTopRightRadius: '0px',
+                                borderBottomRightRadius: '0px',
+                            }}
+                            onClick={() => handleBigSmallClick('Small')}
+                        >
+                            Small (0-4)
+                        </button>
+                        <button
+                            className="bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white w-full px-5 py-1.5 rounded-sm font-sm shadow-lg transform hover:scale-102 transition-all"
+                            style={{
+                                borderTopLeftRadius: '0px',
+                                borderBottomLeftRadius: '0px',
+                                borderTopRightRadius: '20px',
+                                borderBottomRightRadius: '20px',
+                            }}
+                            onClick={() => handleBigSmallClick('Big')}
+                        >
+                            Big (5-9)
+                        </button>
                     </div>
                 </div>
 
-                {/* Big/Small Buttons - Enhanced design */}
-                <div className="flex gap-0 mb-6 w-full max-w-md mx-auto justify-center">
-                    <button
-                        className="bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white w-full px-8 py-3 rounded-xl font-medium shadow-lg transform hover:scale-105 transition-all"
-                        style={{
-                            borderTopLeftRadius: '20px',
-                            borderBottomLeftRadius: '20px',
-                            borderTopRightRadius: '0px',
-                            borderBottomRightRadius: '0px',
-                        }}
-                        onClick={() => handleBigSmallClick('Small')}
-                    >
-                        Small (0-4)
-                    </button>
-                    <button
-                        className="bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white w-full px-8 py-3 rounded-xl font-medium shadow-lg transform hover:scale-105 transition-all"
-                        style={{
-                            borderTopLeftRadius: '0px',
-                            borderBottomLeftRadius: '0px',
-                            borderTopRightRadius: '20px',
-                            borderBottomRightRadius: '20px',
-                        }}
-                        onClick={() => handleBigSmallClick('Big')}
-                    >
-                        Big (5-9)
-                    </button>
-                </div>
 
                 {/* Bet Modal - Enhanced with glassmorphism */}
                 {showBetModal && (
@@ -872,7 +878,7 @@ function GameBoard() {
                 {/* Tabs for History and My Bets - Enhanced */}
                 <div className="flex w-full mb-3">
                     <button
-                        className={`px-6 py-2 font-medium transition-all ${activeTab === 'history'
+                        className={`px-4 py-2 font-sm transition-all ${activeTab === 'history'
                             ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             }`}
@@ -888,7 +894,7 @@ function GameBoard() {
                     </button>
                     <div className="flex-1" />
                     <button
-                        className={`px-6 py-2 font-medium transition-all ${activeTab === 'mybets'
+                        className={`px-4 py-2 font-sm transition-all ${activeTab === 'mybets'
                             ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg'
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             }`}
@@ -909,7 +915,7 @@ function GameBoard() {
                     // Game History Table with mobile-responsive grid
                     <div className="w-full">
                         {/* Table Header - Mobile responsive */}
-                        <div className="bg-blue-900 text-white rounded-t-lg px-2 py-2 grid grid-cols-12 gap-1 font-medium">
+                        <div className="bg-blue-900 text-white rounded-t-lg px-2 py-2 grid grid-cols-12 gap-1 font-md">
                             <div className="col-span-5 text-left pl-2">Period</div>
                             <div className="col-span-2 text-center">No.</div>
                             <div className="col-span-3 text-center">Big/Small</div>
@@ -922,10 +928,31 @@ function GameBoard() {
                                     <div className="col-span-5 text-white text-left truncate pl-2">
                                         <span className="text-xs md:text-base">{res.period}</span>
                                     </div>
-
                                     {/* Number - centered in its column */}
                                     <div className="col-span-2 flex justify-center">
-                                        <span className={`font-medium text-lg ${COLOR_CLASSES[res.color]}`}>{res.number}</span>
+                                        {(res.number === 0 || res.number === 5) ? (
+                                            <svg width="28" height="28" viewBox="0 0 28 28">
+                                                <defs>
+                                                    <linearGradient id={`halfRedViolet${res.period}`} x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="50%" stopColor="#ef4444" /> {/* red-500 */}
+                                                        <stop offset="50%" stopColor="#a259e6" /> {/* violet */}
+                                                    </linearGradient>
+                                                </defs>
+                                                <text
+                                                    x="50%"
+                                                    y="56%"
+                                                    textAnchor="middle"
+                                                    dominantBaseline="middle"
+                                                    fontSize="16"
+                                                    fontWeight="bold"
+                                                    fill={`url(#halfRedViolet${res.period})`}
+                                                >
+                                                    {res.number}
+                                                </text>
+                                            </svg>
+                                        ) : (
+                                            <span className={`font-medium text-md ${COLOR_CLASSES[res.color]}`}>{res.number}</span>
+                                        )}
                                     </div>
 
                                     {/* Big/Small - centered */}
@@ -934,14 +961,26 @@ function GameBoard() {
                                     </div>
 
                                     {/* Color - circle only, aligned center */}
-                                    <div className="col-span-2 flex justify-center">
-                                        <div
-                                            className={`w-6 h-6 rounded-full ${res.color === 'green' ? 'bg-green-500' :
-                                                res.color === 'red' ? 'bg-red-500' :
-                                                    'bg-purple-500'
-                                                } border border-gray-300`}
-                                            title={COLOR_LABELS[res.color]}
-                                        ></div>
+                                    <div className="col-span-2 flex justify-center gap-2">
+                                        {res.number === 0 ? (
+                                            <>
+                                                <div className="w-3 h-3 rounded-full bg-red-500" title="Red"></div>
+                                                <div className="w-3 h-3 rounded-full bg-purple-500" title="Violet"></div>
+                                            </>
+                                        ) : res.number === 5 ? (
+                                            <>
+                                                <div className="w-3 h-3 rounded-full bg-green-500" title="Green"></div>
+                                                <div className="w-3 h-3 rounded-full bg-purple-500" title="Violet"></div>
+                                            </>
+                                        ) : (
+                                            <div
+                                                className={`w-3 h-3 rounded-full ${res.color === 'green' ? 'bg-green-500' :
+                                                    res.color === 'red' ? 'bg-red-500' :
+                                                        'bg-purple-500'
+                                                    } `}
+                                                title={COLOR_LABELS[res.color]}
+                                            ></div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
