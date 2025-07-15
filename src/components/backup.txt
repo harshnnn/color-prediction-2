@@ -1,0 +1,33 @@
+    {/* Hidden div visible on hover */}
+            <div className="relative group">
+              <div className="text-white flex items-center justify-center gap-2 text-md font-md break-all cursor-pointer">
+                {userInfo.username ? userInfo.username : "User"}
+                <span className='pt-1'><FaChevronDown /></span>
+              </div>
+              <div className="absolute hidden group-hover:flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40">
+                <button
+                  onClick={() => navigate('/')}
+                  className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Home
+                </button>
+                <button
+                  onClick={() => navigate('/transactions')}
+                  className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Transactions
+                </button>
+                <button
+                  onClick={() => navigate('/change-password')}
+                  className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => logout()}
+                  className="text-red-700 hover:text-red-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Logout
+                </button>
+              </div>
+            </div>

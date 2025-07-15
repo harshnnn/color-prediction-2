@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Deposit from './Deposit';
 import Withdrawal from './Withdrawal';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +25,8 @@ const Navbar = () => {
   const [transactions, setTransactions] = useState([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsError, setTransactionsError] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Helper to check if JWT is expired
   function isTokenExpired(token) {
@@ -212,6 +214,29 @@ const Navbar = () => {
     }
   };
 
+  // Function to toggle dropdown visibility
+  const toggleDropdown = () => {
+    setIsDropdownOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        isDropdownOpen &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   return (
     <>
       {/* Responsive Navbar */}
@@ -226,18 +251,44 @@ const Navbar = () => {
           >
             99<span className="text-white">EXCH</span>
           </button>
-          {/* Profile/User Button */}
-          <button
-            onClick={handleOpenUserPanel}
-            className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
-            title="Account"
-            aria-label="Account"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
-              <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
-            </svg>
-          </button>
+              {/* Hidden div visible on click */}
+            <div className="relative" ref={dropdownRef}>
+              <div
+                className="text-white flex items-center justify-center gap-2 text-md font-md break-all cursor-pointer"
+                onClick={toggleDropdown}
+              >
+                {userInfo.username ? userInfo.username : "User"}
+                <span className='pt-1'><FaChevronDown /></span>
+              </div>
+              {isDropdownOpen && (
+                <div className="absolute flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40">
+                  <button
+                    onClick={() => navigate('/')}
+                    className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                  >
+                    Home
+                  </button>
+                  <button
+                    onClick={() => navigate('/transactions')}
+                    className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                  >
+                    Transactions
+                  </button>
+                  <button
+                    onClick={() => navigate('/change-password')}
+                    className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                  >
+                    Change Password
+                  </button>
+                  <button
+                    onClick={() => logout()}
+                    className="text-red-700 hover:text-red-900 px-4 py-2 text-sm text-left hover:underline "
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
         </div>
         {/* Mobile: Bottom Row */}
         <div className="flex items-center  justify-center gap-2 px-3 pb-2 sm:hidden">
