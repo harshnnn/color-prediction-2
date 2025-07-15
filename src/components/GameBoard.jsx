@@ -465,7 +465,7 @@ function GameBoard() {
       )}
 
       {/* Main UI, faded when last 5 seconds or result */}
-      <div className={timeLeft <= 5 || showResult ? "pointer-events-none opacity-30 transition-all bg-[#22275b] p-2 pt-5" : "bg-[#22275b] p-2 pt-5"}>
+      <div className={timeLeft <= 5 || showResult ? "pointer-events-none opacity-30 transition-all bg-[#22275b] p-2 pt-5" : "bg-[#22275b] p-2 pt-5 sm:mt-0 mt-7"}>
         {/* Game Type Selection - Enhanced with animations */}
         <div className='bg-[#37499e] p-0 m-0'>
           <div className="flex gap-0 mb-6 w-full  justify-center">
@@ -520,7 +520,6 @@ function GameBoard() {
             })}
           </div>
         </div>
-
 
         {/* Timer and Period Section - Ticket style, smaller & responsive, always show divider & cutouts */}
         <div

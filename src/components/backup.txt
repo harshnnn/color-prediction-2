@@ -624,7 +624,7 @@ export default function WithdrawalPage() {
                           Authorization: `Bearer ${token}`,
                         },
                         body: JSON.stringify({
-                          account_id: String(withdrawAccount.bank_account_number),
+                          account_id: withdrawAccount.id,
                           amount: Number(withdrawAmount),
                           withdraw_password: withdrawPassword,
                         }),
@@ -712,7 +712,8 @@ export default function WithdrawalPage() {
                   required
                 />
               </div>
-              {!hasWithdrawPassword && (
+              {/* Only show withdraw password if user has no accounts */}
+              {accounts.length === 0 && (
                 <div>
                   <label className="block font-semibold mb-1">WITHDRAW PASSWORD</label>
                   <input

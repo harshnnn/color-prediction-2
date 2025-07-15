@@ -241,17 +241,18 @@ const Navbar = () => {
     <>
       {/* Responsive Navbar */}
       <nav className="w-full mb-0 pb-0">
-        {/* Mobile: Top Row */}
-        <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px] sm:hidden">
-          {/* Logo */}
-          <button
-            onClick={() => navigate('/')}
-            className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none focus:outline-none hover:text-yellow-500"
-            style={{ letterSpacing: '1px' }}
-          >
-            99<span className="text-white">EXCH</span>
-          </button>
-              {/* Hidden div visible on click */}
+        <div className='bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px] sm:hidden'>     {/* Mobile: Top Row */}
+          {/* Mobile: Top Row */}
+          <div className="flex items-center justify-between px-3 pt-2 ">
+            {/* Logo */}
+            <button
+              onClick={() => navigate('/')}
+              className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none focus:outline-none hover:text-yellow-500"
+              style={{ letterSpacing: '1px' }}
+            >
+              99<span className="text-white">EXCH</span>
+            </button>
+            {/* Hidden div visible on click */}
             <div className="relative" ref={dropdownRef}>
               <div
                 className="text-white flex items-center justify-center gap-2 text-md font-md break-all cursor-pointer"
@@ -289,26 +290,29 @@ const Navbar = () => {
                 </div>
               )}
             </div>
+          </div>
+          {/* Mobile: Bottom Row */}
+          <div className="flex items-center justify-around mr-3 py-2 ">
+            <button
+              onClick={() => navigate('/Deposit')}
+              className="text-center text-white px-1 py-1 uppercase  flex items-center justify-center rounded border border-white m-1 no-underline"
+              style={{ fontSize: '12px', fontWeight: '900', padding: '5px', margin: '0 5px', background: 'linear-gradient(180deg, #007b15, #138e00)' }}
+            >
+              <img src="/buttons/deposit-icon.webp" alt="Deposit Icon" className="w-5 h-5" style={{ filter: 'invert(1)', marginRight: '5px', width: '25px' }} />
+              DEPOSIT
+            </button>
+            <button
+              onClick={() => navigate('/Withdrawl')}
+              className="text-center text-white px-1 py-1 uppercase  flex items-center justify-center rounded  border border-white m-1 no-underline"
+              style={{ fontSize: '12px', fontWeight: '900', padding: '5px', margin: '0 5px', background: 'linear-gradient(180deg,#7b0000,#d10000)' }}
+            >
+              <img src="/buttons/withdrawal-icon.webp" alt="Deposit Icon" className="w-5 h-5" style={{ filter: 'invert(1)', marginRight: '5px', width: '25px' }} />
+              WITHDRAWAL
+            </button>
+          </div>
         </div>
-        {/* Mobile: Bottom Row */}
-        <div className="flex items-center  justify-center gap-2 px-3 pb-2 sm:hidden">
-          <button
-            onClick={() => navigate('/Deposit')}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded shadow text-base"
-            style={{ minWidth: 0 }}
-          >
-            <i className="fa fa-piggy-bank text-lg"></i>
-            DEPOSIT
-          </button>
-          <button
-            onClick={() => navigate('/Withdrawl')}
-            className="flex-1 flex items-center justify-center gap-2 bg-red-700 hover:bg-red-800 text-white font-bold py-2 rounded shadow text-base"
-            style={{ minWidth: 0 }}
-          >
-            <i className="fa fa-exchange-alt text-lg"></i>
-            WITHDRAWAL
-          </button>
-        </div>
+
+
         {/* Desktop/Tablet: Original Navbar */}
         <div className="hidden sm:flex w-full flex-wrap items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px]">
           {/* Logo (left) */}
@@ -396,157 +400,7 @@ const Navbar = () => {
         </div>
       </nav>
       {/* User Management Panel */}
-      {showUserPanel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-bl-sm">
-          <div className="bg-gradient-to-b from-blue-600 to-blue-800 rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto relative border border-blue-300">
-            {/* Header */}
-            <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-blue-400">
-              <h2 className="text-white text-xl font-bold">User Management</h2>
-              <button
-                onClick={() => setShowUserPanel(false)}
-                className="text-white text-2xl font-bold hover:text-blue-200"
-              >
-                ×
-              </button>
-            </div>
-            {/* Content */}
-            <div className="p-4 sm:p-6 space-y-6">
-              {/* User Info (Balance & Username) */}
-              <div className="flex flex-col items-center mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg border-2 border-white/10">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
-                      <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
-                    </svg>
-                  </div>
-                  <div className="text-white text-lg font-bold break-all">
-                    {userInfo.username ? userInfo.username : "User"}
-                  </div>
-                </div>
-                <div className="text-sm text-white font-semibold bg-blue-900 bg-opacity-70 px-4 py-2 rounded-lg shadow border border-blue-700 min-w-[120px] text-center">
-                  {userInfoLoading ? (
-                    <span className="text-blue-200">Loading...</span>
-                  ) : userInfoError ? (
-                    <span className="text-red-300">--</span>
-                  ) : (
-                    <>
-                      <span className="text-yellow-300">₹</span>
-                      <span className="ml-1">{userInfo.balance !== null ? userInfo.balance : '--'}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              {/* Actions */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <button
-                  onClick={() => setShowChangePassword((v) => !v)}
-                  className="flex-1 bg-gradient-to-br from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white py-3 rounded-lg font-bold shadow-md transition-all"
-                >
-                  Change Password
-                </button>
-                <button
-                  onClick={() => { setShowUserPanel(false); logout(); }}
-                  className="flex-1 bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white py-3 rounded-lg font-bold shadow-md transition-all"
-                >
-                  Logout
-                </button>
-              </div>
-              {/* Change Password Form */}
-              {showChangePassword && (
-                <form onSubmit={handleChangePassword} className="bg-blue-900 bg-opacity-60 rounded-lg p-4 space-y-3">
-                  <div className="text-white font-bold mb-2">Change Password</div>
-                  {changePasswordError && (
-                    <div className="text-red-300 text-sm">{changePasswordError}</div>
-                  )}
-                  {changePasswordSuccess && (
-                    <div className="text-green-300 text-sm">{changePasswordSuccess}</div>
-                  )}
-                  <input
-                    type="password"
-                    placeholder="New Password"
-                    className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                  />
-                  <input
-                    type="password"
-                    placeholder="Confirm New Password"
-                    className="w-full px-3 py-2 rounded bg-gray-800 text-white mb-2"
-                    value={confirmNewPassword}
-                    onChange={e => setConfirmNewPassword(e.target.value)}
-                  />
-                  <button
-                    type="submit"
-                    disabled={changePasswordLoading}
-                    className="w-full bg-gradient-to-br from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white py-2 rounded-lg font-bold mt-2"
-                  >
-                    {changePasswordLoading ? 'Changing...' : 'Change Password'}
-                  </button>
-                </form>
-              )}
-              {/* Transactions */}
-              <div>
-                <div className="text-white font-bold mb-2">Transactions</div>
-                {transactionsLoading ? (
-                  <div className="text-blue-200 py-4">Loading transactions...</div>
-                ) : transactionsError ? (
-                  <div className="text-red-300 py-4">{transactionsError}</div>
-                ) : transactions.length === 0 ? (
-                  <div className="text-blue-200 py-4">No transactions found.</div>
-                ) : (
-                  <div className="space-y-2 h-fit overflow-y-auto">
-                    {[...transactions].reverse().map((txn, idx) => {
-                      // Determine amount sign
-                      const amountStr = txn.debit
-                        ? `-${txn.amount}`
-                        : `+${txn.amount}`;
-                      const amountColor =
-                        txn.debit
-                          ? 'text-red-400'
-                          : 'text-green-400';
 
-                      // Determine remark label
-                      let remarkLabel = '';
-                      if (txn.remark && txn.remark.startsWith('Casino[')) {
-                        remarkLabel = 'Bet';
-                      } else if (txn.remark === 'Withdraw') {
-                        remarkLabel = 'Withdraw';
-                      } else if (txn.remark === 'Deposit') {
-                        remarkLabel = 'Deposit';
-                      } else {
-                        remarkLabel = txn.remark || 'Transaction';
-                      }
-
-                      // Date string
-                      const dateStr = txn.created_at
-                        ? new Date(txn.created_at).toLocaleString()
-                        : '';
-
-                      return (
-                        <div
-                          key={idx}
-                          className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-3 flex justify-between items-center shadow"
-                        >
-                          <div>
-                            <div className="font-medium px-2 py-1 rounded bg-gray-700 text-gray-200 inline-block mb-1">
-                              Remark - {remarkLabel}
-                            </div>
-                            <div className="text-blue-200 text-xs">{dateStr}</div>
-                          </div>
-                          <div className={`font-bold text-lg ${amountColor}`}>
-                            {amountStr}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
