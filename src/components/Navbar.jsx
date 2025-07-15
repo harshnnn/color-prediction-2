@@ -1,9 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Deposit from './Deposit';
 import Withdrawal from './Withdrawal';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { FaChevronDown } from "react-icons/fa";
+
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -140,10 +142,14 @@ const Navbar = () => {
     }
   }, [getValidAccessToken]);
 
-  // Open user panel and fetch info
+  useEffect(() => {
+    // Fetch user info on component mount
+    fetchUserInfo();
+  }, [fetchUserInfo]);
+
+  // Ensure user info is fetched independently of the User Management Panel
   const handleOpenUserPanel = () => {
     setShowUserPanel(true);
-    fetchUserInfo();
     fetchTransactions();
   };
 
@@ -213,9 +219,13 @@ const Navbar = () => {
         {/* Mobile: Top Row */}
         <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px] sm:hidden">
           {/* Logo */}
-          <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>
+          <button
+            onClick={() => navigate('/')}
+            className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none focus:outline-none hover:text-yellow-500"
+            style={{ letterSpacing: '1px' }}
+          >
             99<span className="text-white">EXCH</span>
-          </span>
+          </button>
           {/* Profile/User Button */}
           <button
             onClick={handleOpenUserPanel}
@@ -252,15 +262,73 @@ const Navbar = () => {
         <div className="hidden sm:flex w-full flex-wrap items-center justify-between px-3 py-2 bg-gradient-to-r from-[#0a1a3a] to-[#1a237e] rounded-xl shadow-lg min-h-[54px]">
           {/* Logo (left) */}
           <div className="flex items-center gap-2">
-            <span className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none" style={{ letterSpacing: '1px' }}>
+            <button
+              onClick={() => navigate('/')}
+              className="text-yellow-400 font-extrabold text-2xl tracking-tight select-none focus:outline-none hover:text-yellow-500"
+              style={{ letterSpacing: '1px' }}
+            >
               99<span className="text-white">EXCH</span>
-            </span>
+            </button>
           </div>
+
           {/* Deposit & Withdrawal & Account (right) */}
           <div className="flex items-center gap-2 flex-wrap">
             <Deposit onClick={() => navigate('/Deposit')} />
             <Withdrawal onClick={() => navigate('/Withdrawl')} />
-            <button
+
+            {/* Balance and Username */}
+            <div className="flex items-center gap-2">
+
+              <div className="text-sm text-white font-semibold bg-blue-900 bg-opacity-70 px-4 py-2 rounded-lg shadow border border-blue-700 min-w-[120px] text-center">
+                {userInfoLoading ? (
+                  <span className="text-blue-200">Loading...</span>
+                ) : userInfoError ? (
+                  <span className="text-red-300">--</span>
+                ) : (
+                  <>
+                    <span className="text-white">Balance: </span>
+                    <span className="ml-1 font-bold">{userInfo.balance !== null ? userInfo.balance : '--'}</span>
+                  </>
+                )}
+              </div>
+
+            </div>
+            {/* Hidden div visible on hover */}
+            <div className="relative group">
+              <div className="text-white flex items-center justify-center gap-2 text-md font-md break-all cursor-pointer">
+                {userInfo.username ? userInfo.username : "User"}
+                <span className='pt-1'><FaChevronDown /></span>
+              </div>
+              <div className="absolute hidden group-hover:flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40">
+                <button
+                  onClick={() => navigate('/')}
+                  className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Home
+                </button>
+                <button
+                  onClick={() => navigate('/transactions')}
+                  className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Transactions
+                </button>
+                <button
+                  onClick={() => navigate('/change-password')}
+                  className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => logout()}
+                  className="text-red-700 hover:text-red-900 px-4 py-2 text-sm text-left hover:underline "
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+
+            {/* user panel button */}
+            {/* <button
               onClick={handleOpenUserPanel}
               className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
               title="Account"
@@ -270,8 +338,10 @@ const Navbar = () => {
                 <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
                 <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
               </svg>
-            </button>
+            </button>  */}
           </div>
+
+
         </div>
       </nav>
       {/* User Management Panel */}
@@ -374,7 +444,7 @@ const Navbar = () => {
                 ) : transactions.length === 0 ? (
                   <div className="text-blue-200 py-4">No transactions found.</div>
                 ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-2 h-fit overflow-y-auto">
                     {[...transactions].reverse().map((txn, idx) => {
                       // Determine amount sign
                       const amountStr = txn.debit

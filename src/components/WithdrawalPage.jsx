@@ -189,7 +189,7 @@ export default function WithdrawalPage() {
       if (!res.ok) return;
       const data = await res.json();
       setUserBalance(data.wallet?.balance ?? null);
-    } catch {}
+    } catch { }
   }, [getValidAccessToken]);
 
   useEffect(() => {
@@ -322,6 +322,18 @@ export default function WithdrawalPage() {
     <div className="min-h-screen flex flex-col bg-[#f3f2f6]">
       <ToastContainer />
       <Navbar />
+      {/* Back Button */}
+
+      <div className="flex w-full mx-auto mt-2 px-2 sm:px-4 md:px-8 lg:px-16">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 px-4 py-2 bg-white rounded shadow text-blue-900 font-bold border border-blue-200 hover:bg-blue-50"
+        >
+          <span className="text-lg">&#8592;</span>
+          <span>BACK</span>
+        </button>
+      </div>
+
       {/* Add Account Button */}
       <div className="flex justify-center mt-4 mb-2 px-2">
         <button
@@ -331,6 +343,7 @@ export default function WithdrawalPage() {
           ADD ACCOUNT
         </button>
       </div>
+
       {/* Main Sections */}
       <div className="flex flex-col lg:flex-row gap-4 md:gap-8 px-2 sm:px-4 md:px-8 lg:px-16 w-full">
         {/* Left: Rules */}
@@ -370,13 +383,12 @@ export default function WithdrawalPage() {
                         <tr key={idx} className="border-b last:border-b-0">
                           <td className="px-2 py-2">{(row.amount ?? 0).toFixed(2)}</td>
                           <td className="px-2 py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              row.status === "APPROVED" || row.status === "approved"
-                                ? "bg-green-100 text-green-700 border border-green-400"
-                                : row.status === "PENDING" || row.status === "pending"
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${row.status === "APPROVED" || row.status === "approved"
+                              ? "bg-green-100 text-green-700 border border-green-400"
+                              : row.status === "PENDING" || row.status === "pending"
                                 ? "bg-yellow-100 text-yellow-700 border border-yellow-400"
                                 : "bg-red-100 text-red-700 border border-red-400"
-                            }`}>
+                              }`}>
                               {row.status ? row.status.toUpperCase() : '-'}
                             </span>
                           </td>

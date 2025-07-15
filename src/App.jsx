@@ -6,6 +6,8 @@ import DepositPage from './components/DepositPage';
 import WithdrawalPage from './components/WithdrawalPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
+import Transactions from './components/Transactions';
+import ChangePassword from './components/ChangePassword';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -54,6 +56,16 @@ function AppContent() {
         <Route path="/Withdrawl" element={
           <ProtectedRoute>
             <WithdrawalPage />
+          </ProtectedRoute>
+        } />
+        <Route path ="/transactions" element={
+          <ProtectedRoute>
+           <Transactions/>
+          </ProtectedRoute>
+        }/>
+        <Route path="/change-password" element={
+          <ProtectedRoute>
+            <ChangePassword />
           </ProtectedRoute>
         } />
       </Routes>

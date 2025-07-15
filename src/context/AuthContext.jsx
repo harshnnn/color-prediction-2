@@ -129,6 +129,49 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const getValidAccessToken = async () => {
+    const accessToken = localStorage.getItem('access_token');
+    const refreshToken = localStorage.getItem('refresh_token');
+
+    if (accessToken && !isTokenExpired(accessToken)) {
+      return accessToken;
+    }
+
+    if (refreshToken) {
+      try {
+        const response = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.access_token) {
+          localStorage.setItem('access_token', data.access_token);
+          return data.access_token;
+        }
+      } catch (err) {
+        console.error('Failed to refresh token:', err);
+      }
+    }
+
+    logout();
+    return null;
+  };
+
+  const isTokenExpired = (token) => {
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -138,7 +181,8 @@ export const AuthProvider = ({ children }) => {
       login,
       signup, 
       logout,
-      refreshToken 
+      refreshToken,
+      getValidAccessToken,
     }}>
       {children}
     </AuthContext.Provider>
