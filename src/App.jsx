@@ -31,6 +31,19 @@ const ProtectedRoute = ({ children }) => {
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
 
+  useEffect(() => {
+    const checkToken = async () => {
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      if (!accessToken || !refreshToken) {
+        window.location.href = '/login';
+      }
+    };
+
+    checkToken();
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#111827] to-[#1f2937]">
