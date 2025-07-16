@@ -92,7 +92,7 @@ const Navbar = () => {
         setUserInfoLoading(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/users/', {
+      const res = await fetch('https://color-prediction-742i.onrender.com/users', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -254,13 +254,28 @@ const Navbar = () => {
             </button>
             {/* Hidden div visible on click */}
             <div className="relative" ref={dropdownRef}>
-              <div
-                className="text-white flex items-center justify-center gap-2 text-md font-md break-all cursor-pointer"
-                onClick={toggleDropdown}
-              >
-                {userInfo.username ? userInfo.username : "User"}
-                <span className='pt-1'><FaChevronDown /></span>
+              <div className='flex gap-2'>
+                <div className="text-sm text-white font-sm bg-blue-900 bg-opacity-70 px-1 py-1 rounded-lg shadow border border-blue-700 min-w-[60px] text-center">
+                  {userInfoLoading ? (
+                    <span className="text-blue-200">Loading...</span>
+                  ) : userInfoError ? (
+                    <span className="text-red-300">--</span>
+                  ) : (
+                    <>
+                      <span className="text-white">Balance: </span>
+                      <span className="ml-1 font-md">{userInfo.balance !== null ? userInfo.balance : '--'}</span>
+                    </>
+                  )}
+                </div>
+                <div
+                  className="text-white flex items-center justify-center gap-2 text-md font-md break-all cursor-pointer"
+                  onClick={toggleDropdown}
+                >
+                  {userInfo.username ? userInfo.username : "User"}
+                  <span className='pt-1'><FaChevronDown /></span>
+                </div>
               </div>
+
               {isDropdownOpen && (
                 <div className="absolute flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40">
                   <button

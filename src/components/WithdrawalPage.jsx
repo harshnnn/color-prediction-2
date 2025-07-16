@@ -182,7 +182,7 @@ export default function WithdrawalPage() {
     try {
       const token = await getValidAccessToken();
       if (!token) return;
-      const res = await fetch('https://color-prediction-742i.onrender.com/users/', {
+      const res = await fetch('https://color-prediction-742i.onrender.com/users', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -215,7 +215,8 @@ export default function WithdrawalPage() {
       toast.error('Please fill all fields');
       return;
     }
-    if (!hasWithdrawPassword && !addWithdrawPassword) {
+    // Only require withdraw password if this is the first account
+    if (accounts.length === 0 && !addWithdrawPassword) {
       toast.error('Please set a withdraw password');
       return;
     }
@@ -227,19 +228,22 @@ export default function WithdrawalPage() {
         setAddAccountLoading(false);
         return;
       }
-      // Replace with your actual endpoint for adding withdrawal account
+      // Only send withdraw_password if first account
+      const body = {
+        account_holder_name: addAccountName,
+        bank_account_number: addAccountNumber,
+        ifsc_code: addIfsc,
+      };
+      if (accounts.length === 0) {
+        body.withdraw_password = addWithdrawPassword;
+      }
       const res = await fetch('https://color-prediction-742i.onrender.com/accounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          account_holder_name: addAccountName,
-          bank_account_number: addAccountNumber,
-          ifsc_code: addIfsc,
-          withdraw_password: !hasWithdrawPassword ? addWithdrawPassword : undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -624,7 +628,7 @@ export default function WithdrawalPage() {
                           Authorization: `Bearer ${token}`,
                         },
                         body: JSON.stringify({
-                          account_id: String(withdrawAccount.bank_account_number),
+                          account_id: withdrawAccount.id,
                           amount: Number(withdrawAmount),
                           withdraw_password: withdrawPassword,
                         }),
@@ -712,7 +716,8 @@ export default function WithdrawalPage() {
                   required
                 />
               </div>
-              {!hasWithdrawPassword && (
+              {/* Only show password field if user has no accounts */}
+              {accounts.length === 0 && (
                 <div>
                   <label className="block font-semibold mb-1">WITHDRAW PASSWORD</label>
                   <input
