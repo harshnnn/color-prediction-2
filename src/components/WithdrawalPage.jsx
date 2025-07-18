@@ -28,6 +28,7 @@ export default function WithdrawalPage() {
   const [withdrawalHistory, setWithdrawalHistory] = useState([]);
   const [withdrawalHistoryLoading, setWithdrawalHistoryLoading] = useState(false);
   const [withdrawalHistoryError, setWithdrawalHistoryError] = useState(null);
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   // Account management
   const [accounts, setAccounts] = useState([]);
@@ -73,7 +74,7 @@ export default function WithdrawalPage() {
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) return null;
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+      const res = await fetch(`${api}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -119,7 +120,7 @@ export default function WithdrawalPage() {
           setWithdrawalHistoryLoading(false);
           return;
         }
-        const res = await fetch('https://color-prediction-742i.onrender.com/withdrawls', {
+        const res = await fetch(`${api}/withdrawls`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -154,7 +155,7 @@ export default function WithdrawalPage() {
           return;
         }
         // Replace with your actual endpoint for fetching user withdrawal accounts
-        const res = await fetch('https://color-prediction-742i.onrender.com/accounts', {
+        const res = await fetch(`${api}/accounts`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -182,7 +183,7 @@ export default function WithdrawalPage() {
     try {
       const token = await getValidAccessToken();
       if (!token) return;
-      const res = await fetch('https://color-prediction-742i.onrender.com/users', {
+      const res = await fetch(`${api}/users`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -237,7 +238,7 @@ export default function WithdrawalPage() {
       if (accounts.length === 0) {
         body.withdraw_password = addWithdrawPassword;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/accounts', {
+      const res = await fetch(`${api}/accounts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -296,7 +297,7 @@ export default function WithdrawalPage() {
         setWithdrawalHistoryLoading(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/withdrawls', {
+      const res = await fetch(`${api}/withdrawls`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -460,7 +461,7 @@ export default function WithdrawalPage() {
                       return;
                     }
                     const res = await fetch(
-                      `https://color-prediction-742i.onrender.com/accounts/${acc.id}`,
+                      `${api}/accounts/${acc.id}`,
                       {
                         method: 'DELETE',
                         headers: {
@@ -626,7 +627,7 @@ export default function WithdrawalPage() {
                         setProcessingWithdraw(false);
                         return;
                       }
-                      const res = await fetch('https://color-prediction-742i.onrender.com/withdrawls', {
+                      const res = await fetch(`${api}/withdrawls`, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',

@@ -2,35 +2,48 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
     // Check if user is already logged in (tokens exist in localStorage)
     const checkAuth = () => {
-      const accessToken = localStorage.getItem('access_token');
-      const refreshToken = localStorage.getItem('refresh_token');
-      
-      if (accessToken && refreshToken) {
-        setIsAuthenticated(true);
-        // You can also fetch user profile here if needed
+      try {
+        const accessToken = localStorage.getItem('access_token');
+        const refreshToken = localStorage.getItem('refresh_token');
+        
+        if (accessToken && refreshToken) {
+          // Only set authenticated if both tokens exist
+          setIsAuthenticated(true);
+        } else {
+          // Clear any partial tokens
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('token_type');
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     
     checkAuth();
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   // Add signup function
   const signup = async (username, password, phone) => {
     setError(null);
-    setLoading(true);
     try {
       // First register the user
-      const signupResponse = await fetch('https://color-prediction-742i.onrender.com/users/', {
+      const signupResponse = await fetch(`${api}/users/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,16 +72,14 @@ export const AuthProvider = ({ children }) => {
       return await login(username, password);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
-      setLoading(false);
       return false;
     }
   };
 
   const login = async (username, password) => {
     setError(null);
-    setLoading(true);
     try {
-      const response = await fetch('https://color-prediction-742i.onrender.com/auth/token', {
+      const response = await fetch(`${api}/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,11 +105,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token_type', data.token_type);
       
       setIsAuthenticated(true);
-      setLoading(false);
       return true;
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
-      setLoading(false);
       return false;
     }
   };
@@ -120,7 +129,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       // Implement refresh token logic here when endpoint is available
-      // const response = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {...});
+      // const response = await fetch(`${api}/auth/refresh`, {...});
       
       return true;
     } catch (err) {
@@ -139,7 +148,7 @@ export const AuthProvider = ({ children }) => {
 
     if (refreshToken) {
       try {
-        const response = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+        const response = await fetch(`${api}/auth/refresh`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

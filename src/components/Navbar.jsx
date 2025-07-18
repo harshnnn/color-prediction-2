@@ -10,6 +10,7 @@ import { FaChevronDown } from "react-icons/fa";
 const Navbar = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   // User panel state and logic (moved from GameBoard)
   const [showUserPanel, setShowUserPanel] = useState(false);
@@ -44,7 +45,7 @@ const Navbar = () => {
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) return null;
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+      const res = await fetch(`${api}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -92,7 +93,7 @@ const Navbar = () => {
         setUserInfoLoading(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/users', {
+      const res = await fetch(`${api}/users`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -128,7 +129,7 @@ const Navbar = () => {
       return;
     }
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/transactions', {
+      const res = await fetch(`${api}/transactions`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -184,7 +185,7 @@ const Navbar = () => {
         setChangePasswordLoading(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/auth/password_reset', {
+      const res = await fetch(`${api}/auth/password_reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

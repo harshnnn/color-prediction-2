@@ -37,6 +37,7 @@ const NUMBER_COLORS = {
 function GameBoard() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   const [gameType, setGameType] = useState(GAME_TYPES[0]);
   const [showBetModal, setShowBetModal] = useState(false);
@@ -75,7 +76,7 @@ function GameBoard() {
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) return null;
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+      const res = await fetch(`${api}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -131,7 +132,7 @@ function GameBoard() {
     const fetchHistory = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`https://color-prediction-742i.onrender.com/results?type_=${type_}&limit=10`);
+        const res = await fetch(`${api}/results?type_=${type_}&limit=10`);
         const data = await res.json();
         const mapped = data
           .filter(r => r.number !== -1)
@@ -262,7 +263,7 @@ function GameBoard() {
         setBetPlacing(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/bets', {
+      const res = await fetch(`${api}/bets`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -316,7 +317,7 @@ function GameBoard() {
       return;
     }
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/bets', {
+      const res = await fetch(`${api}/bets`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

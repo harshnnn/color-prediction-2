@@ -7,6 +7,7 @@ const Transactions = () => {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsError, setTransactionsError] = useState(null);
   const { getValidAccessToken } = useAuth();
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   const fetchTransactions = useCallback(async () => {
     setTransactionsLoading(true);
@@ -19,7 +20,7 @@ const Transactions = () => {
       return;
     }
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/transactions', {
+      const res = await fetch(`${api}/transactions`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

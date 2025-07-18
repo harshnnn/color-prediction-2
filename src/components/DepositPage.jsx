@@ -19,6 +19,7 @@ export default function DepositPage() {
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [utr, setUtr] = useState('');
   const [paymentProof, setPaymentProof] = useState(null);
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   // Deposit methods from API
   const [depositMethods, setDepositMethods] = useState([]);
@@ -48,7 +49,7 @@ export default function DepositPage() {
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) return null;
     try {
-      const res = await fetch('https://color-prediction-742i.onrender.com/auth/refresh', {
+      const res = await fetch(`${api}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -94,7 +95,7 @@ export default function DepositPage() {
           setDepositMethodsLoading(false);
           return;
         }
-        const res = await fetch('https://color-prediction-742i.onrender.com/admin/deposit-method', {
+        const res = await fetch(`${api}/admin/deposit-method`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -231,7 +232,7 @@ export default function DepositPage() {
         setDepositHistoryLoading(false);
         return;
       }
-      const res = await fetch('https://color-prediction-742i.onrender.com/deposits', {
+      const res = await fetch(`${api}/deposits`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -313,7 +314,7 @@ export default function DepositPage() {
       formData.append('utr', utr);
       formData.append('image', paymentProof);
 
-      const res = await fetch('https://color-prediction-742i.onrender.com/deposits', {
+      const res = await fetch(`${api}/deposits`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

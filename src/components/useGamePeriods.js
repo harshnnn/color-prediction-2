@@ -61,6 +61,8 @@ export const GAME_TYPES = [{
 ];
 
 export default function useGamePeriods() {
+ const WEBSOCKET_API_BASE_URL = import.meta.env.VITE_WEBSOCKET_API_BASE_URL ;
+
     const [periods, setPeriods] = useState({
         '30S': {
             period: '',
@@ -91,7 +93,7 @@ export default function useGamePeriods() {
     const timerRefs = useRef({});
 
     useEffect(() => {
-        const ws = new WebSocket('wss://color-prediction-742i.onrender.com/ws');
+        const ws = new WebSocket(WEBSOCKET_API_BASE_URL);
         ws.onopen = () => setWsReady(true);
 
         ws.onmessage = (event) => {

@@ -9,6 +9,7 @@ const ChangePassword = () => {
   const [changePasswordError, setChangePasswordError] = useState('');
   const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
   const { getValidAccessToken } = useAuth();
+  const api = import.meta.env.VITE_API_BASE_URL;
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -40,7 +41,7 @@ const ChangePassword = () => {
         return;
       }
 
-      const res = await fetch('https://color-prediction-742i.onrender.com/auth/password_reset', {
+      const res = await fetch(`${api}/auth/password_reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
