@@ -1,40 +1,39 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Navbar from './Navbar';
-import { useAuth } from '../context/AuthContext';
+import apiClient from '../api/apiClient'; // Import the apiClient
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsError, setTransactionsError] = useState(null);
-  const { getValidAccessToken } = useAuth();
-  const api = import.meta.env.VITE_API_BASE_URL;
 
   const fetchTransactions = useCallback(async () => {
     setTransactionsLoading(true);
     setTransactionsError(null);
     setTransactions([]);
-    let token = await getValidAccessToken();
-    if (!token) {
-      setTransactionsError('No authentication token found.');
-      setTransactionsLoading(false);
-      return;
-    }
     try {
-      const res = await fetch(`${api}/transactions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // Use apiClient instead of fetch. No need to manage tokens here.
+      const res = await apiClient('/transactions', {
+        method: 'GET',
       });
-      if (!res.ok) throw new Error('Failed to fetch transactions.');
+
+      if (!res.ok) {
+        // apiClient handles 401, this is for other server errors
+        throw new Error('Failed to fetch transactions.');
+      }
+
       const data = await res.json();
-      let txns = Array.isArray(data) && Array.isArray(data[0]) ? data[0] : (Array.isArray(data) ? data : []);
+      // The response might be nested, handle it safely
+      const txns = Array.isArray(data) ? data : (Array.isArray(data.transactions) ? data.transactions : []);
       setTransactions(txns);
+
     } catch (err) {
-      setTransactionsError(err.message || 'An error occurred.');
+      // Handle errors, including potential session expiry from apiClient
+      setTransactionsError(err.message || 'An error occurred. Your session may have expired.');
     } finally {
       setTransactionsLoading(false);
     }
-  }, [getValidAccessToken]);
+  }, []); // No dependencies needed as apiClient is stable
 
   useEffect(() => {
     fetchTransactions();

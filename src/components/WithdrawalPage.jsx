@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
 import { MdDeleteOutline, MdVisibility, MdVisibilityOff } from "react-icons/md";
 import ifscBankMappingRaw from './ifsc_bank_mapping.json'; // Adjust path if needed
+import apiClient from '../api/apiClient'; // <-- Import the new client
 
 // Convert mapping array to object for fast lookup
 const ifscBankMapping = {};
@@ -120,21 +121,24 @@ export default function WithdrawalPage() {
           setWithdrawalHistoryLoading(false);
           return;
         }
-        const res = await fetch(`${api}/withdrawls`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        // Use apiClient instead of fetch
+        const res = await apiClient('/withdrawls', {
+          method: 'GET'
         });
+
         if (!res.ok) {
-          setWithdrawalHistoryError('Failed to fetch withdrawal history');
-          setWithdrawalHistoryLoading(false);
-          return;
+          // apiClient handles 401, so this is for other errors (e.g., 500)
+          throw new Error('Failed to fetch withdrawal history');
         }
+
         const data = await res.json();
         setWithdrawalHistory(Array.isArray(data) ? data : []);
+
       } catch (err) {
-        setWithdrawalHistoryError('Failed to fetch withdrawal history');
+        // Errors from apiClient (like session expiry) will land here.
+        // No need to call logout(), as the context listener does it.
+        console.error(err.message);
+        setWithdrawalHistoryError('Could not load history. Your session may have expired.');
       } finally {
         setWithdrawalHistoryLoading(false);
       }
@@ -289,33 +293,29 @@ export default function WithdrawalPage() {
   // Move fetchWithdrawalHistory out of useEffect so you can call it after withdrawal
   const fetchWithdrawalHistory = useCallback(async () => {
     setWithdrawalHistoryLoading(true);
-    setWithdrawalHistoryError(null);
     try {
-      const token = await getValidAccessToken();
-      if (!token) {
-        setWithdrawalHistoryError('Not authenticated');
-        setWithdrawalHistoryLoading(false);
-        return;
-      }
-      const res = await fetch(`${api}/withdrawls`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // Use apiClient instead of fetch
+      const res = await apiClient('/withdrawls', {
+        method: 'GET'
       });
+
       if (!res.ok) {
-        setWithdrawalHistoryError('Failed to fetch withdrawal history');
-        setWithdrawalHistoryLoading(false);
-        return;
+        // apiClient handles 401, so this is for other errors (e.g., 500)
+        throw new Error('Failed to fetch withdrawal history');
       }
+
       const data = await res.json();
       setWithdrawalHistory(Array.isArray(data) ? data : []);
+
     } catch (err) {
-      setWithdrawalHistoryError('Failed to fetch withdrawal history');
+      // Errors from apiClient (like session expiry) will land here.
+      // No need to call logout(), as the context listener does it.
+      console.error(err.message);
+      setWithdrawalHistoryError('Could not load history. Your session may have expired.');
     } finally {
       setWithdrawalHistoryLoading(false);
     }
-  }, [getValidAccessToken]);
+  }, []);
 
   // And update your useEffect to use this function:
   useEffect(() => {

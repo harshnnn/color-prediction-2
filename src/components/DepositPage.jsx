@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import apiClient from '../api/apiClient'; // Import the centralized apiClient
 
 const depositRules = [
   "Deposit money only in the below available accounts to get the fastest credits and avoid possible delays.",
@@ -33,78 +34,17 @@ export default function DepositPage() {
 
   const navigate = useNavigate();
 
-  // Helper to check if JWT is expired
-  function isTokenExpired(token) {
-    if (!token) return true;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  }
-
-  // Helper to refresh access token using refresh token
-  const tryRefreshToken = useCallback(async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) return null;
-    try {
-      const res = await fetch(`${api}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      if (!res.ok) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        return null;
-      }
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem('access_token', data.access_token);
-        return data.access_token;
-      }
-      return null;
-    } catch {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      return null;
-    }
-  }, []);
-
-  // Helper to get a valid access token, refresh if needed
-  const getValidAccessToken = useCallback(async () => {
-    let accessToken = localStorage.getItem('access_token');
-    if (accessToken && !isTokenExpired(accessToken)) {
-      return accessToken;
-    }
-    const refreshed = await tryRefreshToken();
-    if (refreshed) return refreshed;
-    return null;
-  }, [tryRefreshToken]);
-
   // Fetch deposit methods from API on mount
   useEffect(() => {
     const fetchDepositMethods = async () => {
       setDepositMethodsLoading(true);
       setDepositMethodsError(null);
       try {
-        const token = await getValidAccessToken();
-        if (!token) {
-          setDepositMethodsError('Not authenticated');
-          setDepositMethodsLoading(false);
-          return;
-        }
-        const res = await fetch(`${api}/admin/deposit-method`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        // Use apiClient. It handles auth automatically.
+        const res = await apiClient('/admin/deposit-method');
+
         if (!res.ok) {
-          setDepositMethodsError('Failed to fetch deposit methods');
-          setDepositMethodsLoading(false);
-          return;
+          throw new Error('Failed to fetch deposit methods');
         }
         const data = await res.json();
         // Map API methods to UI format (support both old and new API shapes)
@@ -213,46 +153,35 @@ export default function DepositPage() {
         });
         setDepositMethods(mapped);
       } catch (err) {
-        setDepositMethodsError('Failed to fetch deposit methods');
+        setDepositMethodsError(err.message || 'Could not load deposit methods.');
       } finally {
         setDepositMethodsLoading(false);
       }
     };
     fetchDepositMethods();
-  }, [getValidAccessToken]);
+  }, []); // Dependency array is empty as apiClient is stable.
 
   // Fetch deposit history from API
   const fetchDepositHistory = useCallback(async () => {
     setDepositHistoryLoading(true);
     setDepositHistoryError(null);
     try {
-      const token = await getValidAccessToken();
-      if (!token) {
-        setDepositHistoryError('Not authenticated');
-        setDepositHistoryLoading(false);
-        return;
-      }
-      const res = await fetch(`${api}/deposits`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Use apiClient. It handles auth automatically.
+      const res = await apiClient('/deposits');
+
       if (!res.ok) {
-        setDepositHistoryError('Failed to fetch deposit history');
-        setDepositHistoryLoading(false);
-        return;
+        throw new Error('Failed to fetch deposit history');
       }
       const data = await res.json();
       setDepositHistory(Array.isArray(data) ? data : []);
     } catch (err) {
-      setDepositHistoryError('Failed to fetch deposit history');
+      setDepositHistoryError(err.message || 'Could not load deposit history.');
     } finally {
       setDepositHistoryLoading(false);
     }
-  }, [getValidAccessToken]);
+  }, []); // Dependency array is empty as apiClient is stable.
 
-  // Fetch deposit history on mount and when fetchDepositHistory changes
+  // Fetch deposit history on mount
   useEffect(() => {
     fetchDepositHistory();
   }, [fetchDepositHistory]);
@@ -303,37 +232,32 @@ export default function DepositPage() {
       return;
     }
     try {
-      const token = await getValidAccessToken();
-      if (!token) {
-        toast.error('Not authenticated', { position: "top-center" });
-        return;
-      }
+      // apiClient will handle auth.
       const formData = new FormData();
       formData.append('account_id', selectedMethod.key);
       formData.append('amount', Number(amount));
       formData.append('utr', utr);
       formData.append('image', paymentProof);
 
-      const res = await fetch(`${api}/deposits`, {
+      // Use apiClient for FormData submission.
+      // The client is configured to handle the Content-Type header correctly.
+      const res = await apiClient('/deposits', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
+
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.message || data.detail || 'Deposit failed', { position: "top-center" });
-        return;
+        throw new Error(data.message || data.detail || 'Deposit failed');
       }
       toast.success('Deposit request submitted!', { position: "top-center" });
       setUtr('');
       setPaymentProof(null);
       setStep('amount');
       setAmount('');
-      fetchDepositHistory();
+      fetchDepositHistory(); // Refresh history after successful deposit
     } catch (err) {
-      toast.error('Deposit failed. Please try again.', { position: "top-center" });
+      toast.error(err.message || 'Deposit failed. Please try again.', { position: "top-center" });
     }
   };
 
@@ -680,26 +604,35 @@ export default function DepositPage() {
                         <td colSpan={4} className="text-center py-4 text-gray-400">No deposit history found.</td>
                       </tr>
                     ) : (
-                      depositHistory.map((row, idx) => (
-                        <tr key={idx} className="border-b last:border-b-0">
-                          <td className="px-2 py-2">{row.transaction_id || '-'}</td>
-                          <td className="px-2 py-2">{(row.amount ?? 0).toFixed(2)}</td>
-                          <td className="px-2 py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              row.status === "verified"
-                                ? "bg-green-100 text-green-700 border border-green-400"
-                                : "bg-yellow-100 text-yellow-700 border border-yellow-400"
-                            }`}>
-                              {row.status ? row.status.toUpperCase() : '-'}
-                            </span>
-                          </td>
-                          <td className="px-2 py-2">
-                            {row.created_at
-                              ? new Date(row.created_at).toLocaleString()
-                              : row.date || '-'}
-                          </td>
-                        </tr>
-                      ))
+                      depositHistory.map((row, idx) => {
+                        // Defensive coding: Handle cases where row or status is null/undefined
+                        const status = row?.status?.toLowerCase() || 'pending';
+                        const statusText = status.toUpperCase();
+                        
+                        let statusClass = "bg-yellow-100 text-yellow-700 border border-yellow-400"; // Default for 'pending'
+                        if (status === 'verified') {
+                          statusClass = "bg-green-100 text-green-700 border border-green-400";
+                        } else if (status === 'rejected') {
+                          statusClass = "bg-red-100 text-red-700 border border-red-400";
+                        }
+
+                        return (
+                          <tr key={row.transaction_id || idx} className="border-b last:border-b-0">
+                            <td className="px-2 py-2">{row.transaction_id || '-'}</td>
+                            <td className="px-2 py-2">{(row.amount ?? 0).toFixed(2)}</td>
+                            <td className="px-2 py-2">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${statusClass}`}>
+                                {statusText}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2">
+                              {row.created_at
+                                ? new Date(row.created_at).toLocaleString()
+                                : row.date || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

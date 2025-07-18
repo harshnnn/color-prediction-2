@@ -5,215 +5,44 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { FaChevronDown } from "react-icons/fa";
-
+import apiClient from '../api/apiClient'; // Import the apiClient
 
 const Navbar = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const api = import.meta.env.VITE_API_BASE_URL;
 
-  // User panel state and logic (moved from GameBoard)
-  const [showUserPanel, setShowUserPanel] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
-  const [changePasswordError, setChangePasswordError] = useState('');
-  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  // User panel state and logic
   const [userInfo, setUserInfo] = useState({ username: '', balance: null });
   const [userInfoLoading, setUserInfoLoading] = useState(false);
   const [userInfoError, setUserInfoError] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [transactionsError, setTransactionsError] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Helper to check if JWT is expired
-  function isTokenExpired(token) {
-    if (!token) return true;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  }
-
-  // Helper to refresh access token using refresh token
-  const tryRefreshToken = useCallback(async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) return null;
-    try {
-      const res = await fetch(`${api}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      if (!res.ok) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        navigate('/login', { replace: true });
-        return null;
-      }
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem('access_token', data.access_token);
-        return data.access_token;
-      }
-      navigate('/login', { replace: true });
-      return null;
-    } catch {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      navigate('/login', { replace: true });
-      return null;
-    }
-  }, [navigate]);
-
-  // Helper to get a valid access token, refresh if needed, redirect if refresh fails
-  const getValidAccessToken = useCallback(async () => {
-    let accessToken = localStorage.getItem('access_token');
-    if (accessToken && !isTokenExpired(accessToken)) {
-      return accessToken;
-    }
-    const refreshed = await tryRefreshToken();
-    if (refreshed) return refreshed;
-    return null;
-  }, [tryRefreshToken]);
-
-  // Fetch user info (balance and username)
+  // Fetch user info (balance and username) using apiClient
   const fetchUserInfo = useCallback(async () => {
     setUserInfoLoading(true);
     setUserInfoError(null);
     try {
-      const token = await getValidAccessToken();
-      if (!token) {
-        setUserInfoError('No authentication token found.');
-        setUserInfoLoading(false);
-        return;
-      }
-      const res = await fetch(`${api}/users`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiClient('/users'); // apiClient handles auth
       if (!res.ok) {
-        setUserInfoError('Failed to fetch user info');
-        setUserInfoLoading(false);
-        return;
+        throw new Error('Failed to fetch user info');
       }
       const data = await res.json();
-      // API now returns a single user object, not an array
       setUserInfo({
         username: data.username || '',
-        balance: data.wallet && typeof data.wallet.balance === 'number' ? data.wallet.balance : null,
+        balance: data.wallet?.balance ?? null,
       });
     } catch (err) {
-      setUserInfoError('Failed to fetch user info');
+      setUserInfoError('Failed to fetch user info. Your session may have expired.');
     } finally {
       setUserInfoLoading(false);
     }
-  }, [getValidAccessToken]);
-
-  // Fetch transactions
-  const fetchTransactions = useCallback(async () => {
-    setTransactionsLoading(true);
-    setTransactionsError(null);
-    setTransactions([]);
-    let token = await getValidAccessToken();
-    if (!token) {
-      setTransactionsError('No authentication token found.');
-      setTransactionsLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch(`${api}/transactions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to fetch transactions.');
-      const data = await res.json();
-      let txns = Array.isArray(data) && Array.isArray(data[0]) ? data[0] : (Array.isArray(data) ? data : []);
-      setTransactions(txns);
-    } catch (err) {
-      setTransactionsError(err.message || 'An error occurred.');
-    } finally {
-      setTransactionsLoading(false);
-    }
-  }, [getValidAccessToken]);
+  }, []);
 
   useEffect(() => {
     // Fetch user info on component mount
     fetchUserInfo();
   }, [fetchUserInfo]);
-
-  // Ensure user info is fetched independently of the User Management Panel
-  const handleOpenUserPanel = () => {
-    setShowUserPanel(true);
-    fetchTransactions();
-  };
-
-  // Change password handler
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setChangePasswordError('');
-    setChangePasswordSuccess('');
-    if (!newPassword || !confirmNewPassword) {
-      setChangePasswordError('All fields are required.');
-      toast.error('All fields are required.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setChangePasswordError('New password must be at least 6 characters.');
-      toast.error('New password must be at least 6 characters.');
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      setChangePasswordError('New passwords do not match.');
-      toast.error('New passwords do not match.');
-      return;
-    }
-    setChangePasswordLoading(true);
-    try {
-      let token = await getValidAccessToken();
-      if (!token) {
-        setChangePasswordError('No authentication token found.');
-        toast.error('No authentication token found.');
-        setChangePasswordLoading(false);
-        return;
-      }
-      const res = await fetch(`${api}/auth/password_reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          password: newPassword,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setChangePasswordError(data.message || 'Failed to change password.');
-        toast.error(data.message || 'Failed to change password.');
-        setChangePasswordLoading(false);
-        return;
-      }
-      setChangePasswordSuccess('Password changed successfully!');
-      toast.success(data.message || 'Password changed successfully!');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setShowChangePassword(false);
-    } catch (err) {
-      setChangePasswordError(err.message || 'Failed to change password.');
-      toast.error(err.message || 'Failed to change password.');
-    } finally {
-      setChangePasswordLoading(false);
-    }
-  };
 
   // Function to toggle dropdown visibility
   const toggleDropdown = () => {
@@ -278,7 +107,7 @@ const Navbar = () => {
               </div>
 
               {isDropdownOpen && (
-                <div className="absolute flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40">
+                <div className="absolute flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40 z-50">
                   <button
                     onClick={() => navigate('/')}
                     className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
@@ -370,7 +199,7 @@ const Navbar = () => {
                 {userInfo.username ? userInfo.username : "User"}
                 <span className='pt-1'><FaChevronDown /></span>
               </div>
-              <div className="absolute hidden group-hover:flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40">
+              <div className="absolute hidden group-hover:flex flex-col bg-white shadow-lg rounded-lg p-2 mt-0 right-0 w-40 z-50">
                 <button
                   onClick={() => navigate('/')}
                   className="text-blue-700 hover:text-blue-900 px-4 py-2 text-sm text-left hover:underline "
@@ -397,26 +226,9 @@ const Navbar = () => {
                 </button>
               </div>
             </div>
-
-            {/* user panel button */}
-            {/* <button
-              onClick={handleOpenUserPanel}
-              className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg border-2 border-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
-              title="Account"
-              aria-label="Account"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
-                <path stroke="currentColor" strokeWidth="2" d="M4 20c0-4 4-7 8-7s8 3 8 7" />
-              </svg>
-            </button>  */}
           </div>
-
-
         </div>
       </nav>
-      {/* User Management Panel */}
-
     </>
   );
 };

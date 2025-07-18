@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Timer from './Timer';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Deposit from './Deposit';
 import Withdrawal from './Withdrawal';
 import Navbar from './Navbar';
 import useGamePeriods, { GAME_TYPES, getColorAndBigSmall, TYPE_MAP } from './useGamePeriods';
+import apiClient from '../api/apiClient'; // Import the apiClient
 
 const COLOR_LABELS = {
   green: 'Green',
@@ -36,8 +35,8 @@ const NUMBER_COLORS = {
 
 function GameBoard() {
   const { logout } = useAuth();
-  const navigate = useNavigate();
-  const api = import.meta.env.VITE_API_BASE_URL;
+  // The api base url is now handled by apiClient
+  // const api = import.meta.env.VITE_API_BASE_URL;
 
   const [gameType, setGameType] = useState(GAME_TYPES[0]);
   const [showBetModal, setShowBetModal] = useState(false);
@@ -71,68 +70,17 @@ function GameBoard() {
     '5M': [],
   });
 
-  // Helper to refresh access token using refresh token
-  const tryRefreshToken = useCallback(async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) return null;
-    try {
-      const res = await fetch(`${api}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      if (!res.ok) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        navigate('/login', { replace: true });
-        return null;
-      }
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem('access_token', data.access_token);
-        return data.access_token;
-      }
-      navigate('/login', { replace: true });
-      return null;
-    } catch {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      navigate('/login', { replace: true });
-      return null;
-    }
-  }, [navigate]);
-
-  // Helper to check if JWT is expired
-  function isTokenExpired(token) {
-    if (!token) return true;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  }
-
-  // Helper to get a valid access token, refresh if needed, redirect if refresh fails
-  const getValidAccessToken = useCallback(async () => {
-    let accessToken = localStorage.getItem('access_token');
-    if (accessToken && !isTokenExpired(accessToken)) {
-      return accessToken;
-    }
-    // Try to refresh
-    const refreshed = await tryRefreshToken();
-    if (refreshed) return refreshed;
-    // If refresh fails, navigate to login (handled in tryRefreshToken)
-    return null;
-  }, [tryRefreshToken]);
-
   // Fetch result history from API on mount and gameType change
   useEffect(() => {
     const type_ = TYPE_MAP[gameType.label] || '30S';
     const fetchHistory = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${api}/results?type_=${type_}&limit=10`);
+        // Use apiClient for consistency, even for public endpoints
+        const res = await apiClient(`/results?type_=${type_}&limit=10`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch game history.");
+        }
         const data = await res.json();
         const mapped = data
           .filter(r => r.number !== -1)
@@ -145,7 +93,7 @@ function GameBoard() {
           [type_]: mapped
         }));
       } catch (e) {
-        // handle error
+        console.error("Error fetching history:", e);
       } finally {
         setLoading(false);
       }
@@ -256,34 +204,23 @@ function GameBoard() {
     };
 
     try {
-      let token = await getValidAccessToken();
-      if (!token) {
-        setBetPlaceError("No authentication token found.");
-        toast.error("No authentication token found.", { position: "top-center" });
-        setBetPlacing(false);
-        return;
-      }
-      const res = await fetch(`${api}/bets`, {
+      // Use apiClient. No more manual token handling.
+      const res = await apiClient('/bets', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(payload),
       });
+
       const data = await res.json();
       if (!res.ok) {
+        // apiClient handles 401, this is for other errors
         const backendMsg = data.message || data.detail || "Failed to place bet.";
-        setBetPlaceError(backendMsg);
-        toast.error(`Bet failed: ${backendMsg}`, { position: "top-center" });
-        setBetPlacing(false);
-        return;
+        throw new Error(backendMsg);
       }
       setShowBetModal(false);
       toast.success(`Bet of amount ${amount} placed successfully.`, { position: "top-center" });
     } catch (err) {
-      setBetPlaceError(err.message || "Failed to place bet.");
-      toast.error(`Bet failed: ${err.message || "Failed to place bet."}`, { position: "top-center" });
+      setBetPlaceError(err.message);
+      toast.error(`Bet failed: ${err.message}`, { position: "top-center" });
     } finally {
       setBetPlacing(false);
     }
@@ -310,27 +247,22 @@ function GameBoard() {
     setBetsLoading(true);
     setBetsError(null);
     setApiBets([]);
-    let token = await getValidAccessToken();
-    if (!token) {
-      setBetsError('No authentication token found.');
-      setBetsLoading(false);
-      return;
-    }
+    
     try {
-      const res = await fetch(`${api}/bets`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to fetch bets.');
+      // Use apiClient. No more manual token handling.
+      const res = await apiClient('/bets');
+      if (!res.ok) {
+        throw new Error('Failed to fetch your bets.');
+      }
       const data = await res.json();
       setApiBets(Array.isArray(data) ? data : (Array.isArray(data.bets) ? data.bets : []));
     } catch (err) {
-      setBetsError(err.message || 'An error occurred.');
+      // apiClient will trigger logout on auth failure, but we can still show an error.
+      setBetsError(err.message || 'An error occurred while fetching bets.');
     } finally {
       setBetsLoading(false);
     }
-  }, [getValidAccessToken]);
+  }, []); // Dependency array is now empty as getValidAccessToken is removed.
 
   // Fetch bets when "My Bets" tab is selected
   useEffect(() => {
