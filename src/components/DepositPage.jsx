@@ -323,7 +323,7 @@ export default function DepositPage() {
                 <div className="flex">
                   <input
                     type="number"
-                    className="flex-1 px-4 py-3 rounded-l border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg"
+                    className="flex-1 px-0 sm:px-4 py-3 rounded-l border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
                     placeholder="Enter amount"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
@@ -331,7 +331,7 @@ export default function DepositPage() {
                   />
                   <button
                     type="submit"
-                    className="bg-[#1a237e] text-white font-bold px-6 rounded-r transition hover:bg-blue-900"
+                    className="bg-[#1a237e] text-white font-md sm:px-6 px-2 rounded-r transition hover:bg-blue-900"
                   >
                     SUBMIT
                   </button>
@@ -558,7 +558,7 @@ export default function DepositPage() {
                           <button
                             type="submit"
                             className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition-all text-lg"
-                            style={{ minWidth: 0 }}
+                            
                           >
                             SUBMIT
                           </button>
