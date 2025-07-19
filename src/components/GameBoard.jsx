@@ -965,7 +965,7 @@ function GameBoard() {
                         ? "bg-blue-500"
                         : "bg-orange-500";
                   } else {
-                    // number prediction: "zero", "one", ..., "nine"
+                    // number prediction: could be "0", "1", "2", ... OR "zero", "one", "two", ...
                     displayType = "number";
                     const numWords = [
                       "zero",
@@ -979,10 +979,22 @@ function GameBoard() {
                       "eight",
                       "nine",
                     ];
-                    const numIdx = numWords.indexOf(prediction);
-                    displayValue = numIdx !== -1 ? numIdx : "?";
+                    
+                    // Check if prediction is a digit string first
+                    const digitMatch = prediction.match(/^[0-9]$/);
+                    let numIdx = -1;
+                    
+                    if (digitMatch) {
+                      // Handle digit format: "0", "1", "2", etc.
+                      numIdx = parseInt(prediction, 10);
+                    } else {
+                      // Handle word format: "zero", "one", "two", etc.
+                      numIdx = numWords.indexOf(prediction);
+                    }
+                    
+                    displayValue = (numIdx >= 0 && numIdx <= 9) ? numIdx : "?";
                     colorClass =
-                      numIdx !== -1
+                      (numIdx >= 0 && numIdx <= 9)
                         ? NUMBER_COLORS[numIdx] === "green"
                           ? "bg-green-500"
                           : NUMBER_COLORS[numIdx] === "red"
