@@ -68,25 +68,29 @@ export default function useGamePeriods() {
             period: '',
             endTime: null,
             timeLeft: 0,
-            result: null
+            result: null,
+            nextPeriod: null
         },
         '1M': {
             period: '',
             endTime: null,
             timeLeft: 0,
-            result: null
+            result: null,
+            nextPeriod: null
         },
         '3M': {
             period: '',
             endTime: null,
             timeLeft: 0,
-            result: null
+            result: null,
+            nextPeriod: null
         },
         '5M': {
             period: '',
             endTime: null,
             timeLeft: 0,
-            result: null
+            result: null,
+            nextPeriod: null
         },
     });
     const [wsReady, setWsReady] = useState(false);
@@ -107,40 +111,79 @@ export default function useGamePeriods() {
                 const duration = GAME_TYPES.find(g => TYPE_MAP[g.label] === type_).duration;
 
                 setPeriods(prev => {
-                    if (timerRefs.current[type_]) clearInterval(timerRefs.current[type_]);
-                    const now = new Date();
-                    let diff = Math.floor((periodEndTime - now) / 1000);
-                    let timeLeft = ((diff % duration) + duration) % duration;
-                    timerRefs.current[type_] = setInterval(() => {
-                        setPeriods(p => {
-                            const nowTick = new Date();
-                            let diffTick = Math.floor((periodEndTime - nowTick) / 1000);
-                            let timeLeftTick = ((diffTick % duration) + duration) % duration;
-                            return {
-                                ...p,
-                                [type_]: {
-                                    ...p[type_],
-                                    timeLeft: timeLeftTick
+                    const currentPeriod = prev[type_];
+                    
+                    // If no current period is running, start immediately
+                    if (!currentPeriod.period || currentPeriod.timeLeft === 0) {
+                        if (timerRefs.current[type_]) clearInterval(timerRefs.current[type_]);
+                        const now = new Date();
+                        let diff = Math.floor((periodEndTime - now) / 1000);
+                        let timeLeft = ((diff % duration) + duration) % duration;
+                        
+                        timerRefs.current[type_] = setInterval(() => {
+                            setPeriods(p => {
+                                const nowTick = new Date();
+                                let diffTick = Math.floor((periodEndTime - nowTick) / 1000);
+                                let timeLeftTick = ((diffTick % duration) + duration) % duration;
+                                
+                                // Check if timer reached 0 and we have a next period waiting
+                                if (timeLeftTick === 0 && p[type_].nextPeriod) {
+                                    // Switch to next period
+                                    const nextPeriodData = p[type_].nextPeriod;
+                                    const nextEndTime = parsePeriodToUTCDate(nextPeriodData.periodStr);
+                                    const nextDiff = Math.floor((nextEndTime - nowTick) / 1000);
+                                    const nextTimeLeft = ((nextDiff % duration) + duration) % duration;
+                                    
+                                    return {
+                                        ...p,
+                                        [type_]: {
+                                            ...p[type_],
+                                            period: nextPeriodData.periodStr,
+                                            endTime: nextEndTime,
+                                            timeLeft: nextTimeLeft,
+                                            nextPeriod: null,
+                                            result: null
+                                        }
+                                    };
                                 }
-                            };
-                        });
-                    }, 1000);
+                                
+                                return {
+                                    ...p,
+                                    [type_]: {
+                                        ...p[type_],
+                                        timeLeft: timeLeftTick
+                                    }
+                                };
+                            });
+                        }, 1000);
 
-                    return {
-                        ...prev,
-                        [type_]: {
-                            ...prev[type_],
-                            period: periodStr,
-                            timeLeft,
-                            result: null
-                        }
-                    };
+                        return {
+                            ...prev,
+                            [type_]: {
+                                ...prev[type_],
+                                period: periodStr,
+                                endTime: periodEndTime,
+                                timeLeft,
+                                result: null,
+                                nextPeriod: null
+                            }
+                        };
+                    } else {
+                        // Current period is still running, store as next period
+                        return {
+                            ...prev,
+                            [type_]: {
+                                ...prev[type_],
+                                nextPeriod: {
+                                    periodStr,
+                                    endTime: periodEndTime
+                                }
+                            }
+                        };
+                    }
                 });
                 return;
             }
-
-            // Result message
-            // ...existing code...
 
             // Result message
             const resultMatch = msg.match(/^(\d{14}) (30S|1M|3M|5M) (\d+) ([\d\-:.\s]+)$/);
